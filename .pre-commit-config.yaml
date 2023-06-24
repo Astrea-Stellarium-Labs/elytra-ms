@@ -1,0 +1,21 @@
+repos:
+- repo: https://github.com/psf/black
+  rev: 23.3.0
+  hooks:
+    - id: black
+      args: [--target-version, py311, --preview]
+      language_version: python3.11
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v4.4.0
+  hooks:
+    - id: trailing-whitespace
+- repo: https://github.com/charliermarsh/ruff-pre-commit
+  rev: 'v0.0.272'
+  hooks:
+    - id: ruff
+      language_version: python3.11
+
+ci:
+  autofix_commit_msg: 'ci: auto fixes from pre-commit.com hooks'
+  autoupdate_branch: 'main'
+  autoupdate_commit_msg: 'ci: pre-commit autoupdate'

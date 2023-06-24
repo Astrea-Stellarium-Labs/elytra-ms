@@ -1,0 +1,75 @@
+[build-system]
+requires = ["setuptools>=63", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "elytra-ms"
+authors = [{ name = "AstreaTSS" }]
+description = "A Python Library for various Microsoft APIs, including the Xbox and Bedrock Realms APIs."
+requires-python = ">=3.10"
+readme = "README.md"
+license = { text = "MIT" }
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Typing :: Typed",
+]
+dynamic = ["version", "dependencies", "urls"]
+
+[tool.setuptools]
+packages=["elytra"]
+
+
+[project.optional-dependencies]
+orjson = ["orjson"]
+
+[project.scripts]
+elytra-authenticate = "elytra.scripts.authenticate:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "elytra.__version__" }
+dependencies = { file = ["requirements.txt"] }
+
+[tool.ruff]
+line-length = 88
+
+select = ["E", "F", "UP", "N", "YTT", "ANN", "S", "B", "A", "C4", "T20", "RET", "SIM", "I001"]
+ignore = ["E501", "E402", "B003", "ANN101", "ANN102", "RET506", "ANN401", "B008", "N806", "A003", "N818", "UP007", "SIM118", "RET502", "RET503", "SIM114", "S603", "S607", "F405", "F403", "S107"]
+
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+]
+per-file-ignores = {}
+
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+target-version = "py311"
+
+fix = true
+
+[tool.ruff.mccabe]
+max-complexity = 10
+
+[tool.ruff.isort]
+extra-standard-library = ["tomllib"]
