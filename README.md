@@ -26,7 +26,7 @@ TODO: actually do this section.
 Requires Python 3.10+.
 
 ```sh
-pip install -U elyta-ms
+pip install -U elytra-ms
 ```
 
 ### Make An Application
