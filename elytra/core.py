@@ -19,6 +19,7 @@ __all__ = (
     "ParsablePascalModel",
     "add_decoder",
     "AuthenticationManager",
+    "MicrosoftAPIException",
     "BaseMicrosoftAPI",
 )
 
