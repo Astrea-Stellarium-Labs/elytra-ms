@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import functools
 import typing
 
 import aiohttp
@@ -199,10 +200,10 @@ class AuthenticationManager:
         client_id: str,
         client_secret: str,
         relying_party: str,
-        token_path: str = "token.json",
+        oauth_path: str,
     ) -> typing.Self:
         self = cls(session, client_id, client_secret, relying_party)
-        self.oauth = OAuth2TokenResponse.from_file(token_path)
+        self.oauth = OAuth2TokenResponse.from_file(oauth_path)
         await self.refresh_tokens()
         return self
 
@@ -303,15 +304,6 @@ class AuthenticationManager:
         await self.session.close()
 
 
-@add_decoder
-class ThrottledResponse(ParsableCamelModel):
-    version: int
-    current_requests: int
-    max_requests: int
-    period_in_seconds: int
-    limit_type: str
-
-
 class MicrosoftAPIException(Exception):
     def __init__(self, resp: aiohttp.ClientResponse, error: Exception) -> None:
         self.resp = resp
@@ -337,31 +329,31 @@ except ImportError:
 
 
 class CustomRetry(aiohttp_retry.JitterRetry):
-    def get_timeout(self, attempt: int, resp: ClientResponse | None = None) -> float:
-        if not resp:
-            return super().get_timeout(attempt, resp)
+    def get_timeout(
+        self, attempt: int, response: ClientResponse | None = None
+    ) -> float:
+        if not response:
+            return super().get_timeout(attempt, response)
 
-        if resp.status == 401:
+        if not response.ok and response.headers.get("Retry-After"):
             timeout = self._start_timeout
             self._start_timeout = 0.5
-            result = super().get_timeout(attempt, resp)
+            result = super().get_timeout(attempt, response)
             self._start_timeout = timeout
             return result
 
-        return super().get_timeout(attempt, resp)
+        return super().get_timeout(attempt, response)
 
 
-async def evaluate_response_callback(resp: aiohttp.ClientResponse) -> bool:
-    if resp.status == 401:  # unauthorized
-        if retry_after := resp.headers.get("Retry-After"):
-            await asyncio.sleep(float(retry_after))
+async def evaluate_response_callback(
+    auth_mgr: AuthenticationManager, resp: aiohttp.ClientResponse
+) -> bool:
+    if resp.status == 401:
+        await auth_mgr.refresh_tokens(force_refresh=True)
         return False
-    if resp.status == 429:
-        try:
-            parsed_resp = await ThrottledResponse.from_response(resp)
-            await asyncio.sleep(parsed_resp.period_in_seconds)
-        except msgspec.ValidationError:
-            await asyncio.sleep(5)
+
+    if not resp.ok and (retry_after := resp.headers.get("Retry-After")):
+        await asyncio.sleep(float(retry_after))
         return False
     return True
 
@@ -381,20 +373,22 @@ class BaseMicrosoftAPI(HandlerProtocol):
 
     @classmethod
     async def from_file(
-        cls, client_id: str, client_secret: str, token_path: str = "tokens.json"
+        cls, client_id: str, client_secret: str, oauth_path: str = "oauth.json"
     ) -> typing.Self:
         session = aiohttp_retry.RetryClient(
             retry_options=CustomRetry(
                 attempts=3,
                 start_timeout=0.1,
-                random_interval_size=0.2,
-                evaluate_response_callback=evaluate_response_callback,
+                random_interval_size=0.35,
             ),
             response_class=BetterResponse,
             json_serialize=_dumps_wrapper,
         )
         auth_mgr = await AuthenticationManager.from_file(
-            session, client_id, client_secret, cls.RELYING_PATH, token_path
+            session, client_id, client_secret, cls.RELYING_PATH, oauth_path
+        )
+        session._retry_options.evaluate_response_callback = functools.partial(
+            evaluate_response_callback, auth_mgr
         )
         return cls(session, auth_mgr)
 
