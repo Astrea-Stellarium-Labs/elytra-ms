@@ -59,10 +59,10 @@ async def async_main() -> None:
 
     parser = argparse.ArgumentParser(description="Authenticate into Microsoft's APIs.")
     parser.add_argument(
-        "--tokens",
+        "--file",
         "-t",
-        default="tokens.json",
-        help="Token filepath. Default: 'tokens.json'",
+        default="oauth.json",
+        help="Filepath to put output of program. Default: 'oauth.json'",
     )
     parser.add_argument(
         "--client-id",
