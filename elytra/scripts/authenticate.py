@@ -62,18 +62,18 @@ async def async_main() -> None:
         "--file",
         "-t",
         default="oauth.json",
-        help="Filepath to put output of program. Default: 'oauth.json'",
+        help="Filepath to put output of program. Default: 'oauth.json'.",
     )
     parser.add_argument(
         "--client-id",
         "-cid",
         default=os.environ.get("CLIENT_ID"),
-        help="OAuth2 Client ID",
+        help="OAuth2 client ID.",
     )
     parser.add_argument(
         "--client-secret",
         default=os.environ.get("CLIENT_SECRET"),
-        help="OAuth2 Client Secret",
+        help="OAuth2 client secret.",
     )
     args = parser.parse_args()
 
