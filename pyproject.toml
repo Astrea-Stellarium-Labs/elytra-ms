@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=63", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling", "hatch-requirements-txt"]
+build-backend = "hatchling.build"
 
 [project]
 name = "elytra-ms"
@@ -8,7 +8,7 @@ authors = [{ name = "AstreaTSS" }]
 description = "A Python Library for various Microsoft APIs, including the Xbox and Bedrock Realms APIs."
 requires-python = ">=3.10"
 readme = "README.md"
-license = { text = "MIT" }
+license = "MIT"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -17,11 +17,13 @@ classifiers = [
     "Operating System :: OS Independent",
     "Typing :: Typed",
 ]
-dynamic = ["version", "dependencies", "urls"]
+dynamic = ["version", "dependencies"]
 
-[tool.setuptools]
-packages=["elytra"]
+[project.urls]
+Homepage = "https://github.com/AstreaTSS/elytra-ms"
 
+[tool.hatch.version]
+path = "elytra/__init__.py"
 
 [project.optional-dependencies]
 orjson = ["orjson"]
@@ -29,9 +31,11 @@ orjson = ["orjson"]
 [project.scripts]
 elytra-authenticate = "elytra.scripts.authenticate:main"
 
-[tool.setuptools.dynamic]
-version = { attr = "elytra.__version__" }
-dependencies = { file = ["requirements.txt"] }
+[tool.hatch.metadata.hooks.requirements_txt]
+files = ["requirements.txt"]
+
+[tool.hatch.build]
+include = ["elytra/**/*"]
 
 [tool.ruff]
 line-length = 88

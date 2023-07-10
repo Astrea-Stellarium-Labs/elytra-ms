@@ -17,9 +17,11 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -U setuptools wheel twine build
-          pip install -r requirements.txt --upgrade
+          pip install -U hatch hatch-requirements-txt
       - name: Publish a project to PyPi
         run: |
-          python -m build --sdist --wheel
-          twine upload dist/* -u __token__ -p ${{ secrets.PYPI_API_TOKEN}}
+          hatch build
+          hatch publish
+        env:
+          HATCH_INDEX_USER: __token__
+          HATCH_INDEX_AUTH: ${{ secrets.PYPI_API_TOKEN}}
