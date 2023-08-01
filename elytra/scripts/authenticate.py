@@ -60,7 +60,7 @@ async def async_main() -> None:
     parser = argparse.ArgumentParser(description="Authenticate into Microsoft's APIs.")
     parser.add_argument(
         "--file",
-        "-t",
+        "-f",
         default="oauth.json",
         help="Filepath to put output of program. Default: 'oauth.json'.",
     )
@@ -108,7 +108,7 @@ async def async_main() -> None:
             "http://xboxlive.com",
         )
         oauth = await auth_mgr.request_oauth_token(code, redirect_uri)
-        with open(args.tokens, mode="wb") as f:
+        with open(args.file, mode="wb") as f:
             f.write(msgspec.json.encode(oauth))
 
         await auth_mgr.close()
