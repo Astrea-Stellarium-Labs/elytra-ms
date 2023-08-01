@@ -18,6 +18,7 @@ __all__ = (
     "ParsableCamelModel",
     "ParsablePascalModel",
     "add_decoder",
+    "OAuth2TokenResponse",
     "AuthenticationManager",
     "MicrosoftAPIException",
     "BaseMicrosoftAPI",
@@ -46,6 +47,10 @@ def utc_now() -> datetime.datetime:
 class ParsableBase:
     if typing.TYPE_CHECKING:
         _decoder: msgspec.json.Decoder[typing.Self]
+
+    @classmethod
+    def from_data(cls, obj: dict) -> typing.Self:
+        return cls(**obj)
 
     @classmethod
     def from_bytes(cls, obj: bytes) -> typing.Self:
@@ -193,6 +198,34 @@ class AuthenticationManager:
         self.oauth = None  # type: ignore
         self.user_token = None  # type: ignore
         self.xsts_token = None  # type: ignore
+
+    @classmethod
+    async def from_ouath(
+        cls,
+        session: aiohttp_retry.RetryClient,
+        client_id: str,
+        client_secret: str,
+        relying_party: str,
+        oauth: OAuth2TokenResponse,
+    ) -> typing.Self:
+        self = cls(session, client_id, client_secret, relying_party)
+        self.oauth = oauth
+        await self.refresh_tokens()
+        return self
+
+    @classmethod
+    async def from_data(
+        cls,
+        session: aiohttp_retry.RetryClient,
+        client_id: str,
+        client_secret: str,
+        relying_party: str,
+        oauth_data: dict,
+    ) -> typing.Self:
+        self = cls(session, client_id, client_secret, relying_party)
+        self.oauth = OAuth2TokenResponse.from_data(oauth_data)
+        await self.refresh_tokens()
+        return self
 
     @classmethod
     async def from_file(
@@ -371,6 +404,48 @@ class BaseMicrosoftAPI(HandlerProtocol):
     ) -> None:
         self.session = session
         self.auth_mgr = auth_mgr
+
+    @classmethod
+    async def from_oauth(
+        cls, client_id: str, client_secret: str, oauth: OAuth2TokenResponse
+    ) -> typing.Self:
+        session = aiohttp_retry.RetryClient(
+            retry_options=CustomRetry(
+                attempts=3,
+                start_timeout=0.1,
+                random_interval_size=0.35,
+            ),
+            response_class=BetterResponse,
+            json_serialize=_dumps_wrapper,
+        )
+        auth_mgr = await AuthenticationManager.from_ouath(
+            session, client_id, client_secret, cls.RELYING_PATH, oauth
+        )
+        session._retry_options.evaluate_response_callback = functools.partial(
+            evaluate_response_callback, auth_mgr
+        )
+        return cls(session, auth_mgr)
+
+    @classmethod
+    async def from_data(
+        cls, client_id: str, client_secret: str, oauth_data: dict
+    ) -> typing.Self:
+        session = aiohttp_retry.RetryClient(
+            retry_options=CustomRetry(
+                attempts=3,
+                start_timeout=0.1,
+                random_interval_size=0.35,
+            ),
+            response_class=BetterResponse,
+            json_serialize=_dumps_wrapper,
+        )
+        auth_mgr = await AuthenticationManager.from_data(
+            session, client_id, client_secret, cls.RELYING_PATH, oauth_data
+        )
+        session._retry_options.evaluate_response_callback = functools.partial(
+            evaluate_response_callback, auth_mgr
+        )
+        return cls(session, auth_mgr)
 
     @classmethod
     async def from_file(
