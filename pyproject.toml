@@ -30,6 +30,7 @@ orjson = ["orjson"]
 
 [project.scripts]
 elytra-authenticate = "elytra.scripts.authenticate:main"
+elytra-device-code-auth = "elytra.scripts.auth_device_code:main"
 
 [tool.hatch.metadata.hooks.requirements_txt]
 files = ["requirements.txt"]
