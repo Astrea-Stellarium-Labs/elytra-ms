@@ -1,6 +1,9 @@
+import datetime
 import typing
 from enum import Enum
 from types import NoneType
+
+import msgspec
 
 from elytra.core import CamelBaseModel, ParsableCamelModel, add_decoder
 
@@ -13,6 +16,8 @@ __all__ = (
     "Player",
     "PartialRealm",
     "ActivityListResponse",
+    "PendingInvite",
+    "PendingInviteResponse",
 )
 
 
@@ -81,3 +86,21 @@ class PartialRealm(CamelBaseModel):
 @add_decoder
 class ActivityListResponse(ParsableCamelModel):
     servers: list[PartialRealm]
+
+
+class PendingInvite(CamelBaseModel):
+    invitation_id: str  # not the realm id, funny enough
+    world_name: str
+    world_description: str
+    world_owner_name: str
+    world_owner_uuid: str
+    _date: int = msgspec.field(name="date")
+
+    @property
+    def date(self) -> datetime.datetime:
+        return datetime.datetime.fromtimestamp(self._date, tz=datetime.UTC)
+
+
+@add_decoder
+class PendingInviteResponse(ParsableCamelModel):
+    invites: list[PendingInvite]

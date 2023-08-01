@@ -12,6 +12,8 @@ __all__ = (
     "Player",
     "PartialRealm",
     "ActivityListResponse",
+    "PendingInvite",
+    "PendingInviteResponse",
     "BedrockRealmsAPI",
 )
 
@@ -35,6 +37,31 @@ class BedrockRealmsAPI(BaseMicrosoftAPI):
 
     async def fetch_realms(self) -> MultiRealmResponse:
         return await MultiRealmResponse.from_response(await self.get("worlds"))
+
+    async def invite_player(
+        self, realm_id: str | int, player_xuid: str | int
+    ) -> FullRealm:
+        return await FullRealm.from_response(
+            await self.put(
+                f"invites/{realm_id}/invite/update",
+                json={"invites": {str(player_xuid): "ADD"}},
+            )
+        )
+
+    async def fetch_pending_invite_count(self) -> int:
+        resp = await self.get("invites/count/pending")
+        return int(await resp.text())
+
+    async def fetch_pending_invites(self) -> PendingInviteResponse:
+        return await PendingInviteResponse.from_response(
+            await self.get("invites/pending")
+        )
+
+    async def accept_invite(self, invitation_id: str) -> None:
+        await self.put(f"invites/accept/{invitation_id}")
+
+    async def reject_invite(self, invitation_id: str) -> None:
+        await self.put(f"invites/reject/{invitation_id}")
 
     async def fetch_activities(self) -> ActivityListResponse:
         return await ActivityListResponse.from_response(

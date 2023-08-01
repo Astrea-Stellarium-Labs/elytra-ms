@@ -556,6 +556,25 @@ class BaseMicrosoftAPI(HandlerProtocol):
             **kwargs,
         )
 
+    async def put(
+        self,
+        url: str,
+        json: typing.Any = None,
+        data: typing.Optional[dict] = None,
+        params: typing.Optional[dict] = None,
+        headers: typing.Optional[dict] = None,
+        **kwargs: typing.Any,
+    ) -> aiohttp.ClientResponse:
+        return await self.request(
+            "PUT",
+            url,
+            json=json,
+            data=data,
+            params=params,
+            headers=headers,
+            **kwargs,
+        )
+
     async def delete(
         self,
         url: str,

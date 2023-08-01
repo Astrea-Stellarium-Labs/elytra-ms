@@ -41,6 +41,17 @@ class HandlerProtocol(typing.Protocol):
     ) -> aiohttp.ClientResponse:  # type: ignore
         pass
 
+    async def put(
+        self,
+        url: str,
+        json: typing.Any = None,
+        data: typing.Optional[dict] = None,
+        params: typing.Optional[dict] = None,
+        headers: typing.Optional[dict] = None,
+        **kwargs: typing.Any,
+    ) -> aiohttp.ClientResponse:  # type: ignore
+        pass
+
     async def delete(
         self,
         url: str,
