@@ -94,11 +94,11 @@ class PendingInvite(CamelBaseModel):
     world_description: str
     world_owner_name: str
     world_owner_uuid: str
-    _date: int = msgspec.field(name="date")
+    date_timestamp: int = msgspec.field(name="date")
 
     @property
     def date(self) -> datetime.datetime:
-        return datetime.datetime.fromtimestamp(self._date, tz=datetime.UTC)
+        return datetime.datetime.fromtimestamp(self.date_timestamp, tz=datetime.UTC)
 
 
 @add_decoder
