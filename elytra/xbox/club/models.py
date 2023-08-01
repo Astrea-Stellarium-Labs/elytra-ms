@@ -4,6 +4,7 @@ from enum import IntEnum
 from uuid import UUID
 
 import msgspec
+import typing_extensions as typing_ext
 
 from elytra.core import CamelBaseModel, ParsableCamelModel, add_decoder
 
@@ -37,7 +38,7 @@ class ClubUserPresence(IntEnum):
     IN_GAME = 6
 
     @classmethod
-    def from_xbox_api(cls, value: str) -> typing.Self:
+    def from_xbox_api(cls, value: str) -> typing_ext.Self:
         try:
             return cls[_camel_to_const_snake(value)]
         except KeyError:

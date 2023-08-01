@@ -6,6 +6,7 @@ import typing
 import aiohttp
 import aiohttp_retry
 import msgspec
+import typing_extensions as typing_ext
 from aiohttp import ClientResponse
 
 from elytra.protocols import HandlerProtocol
@@ -46,18 +47,18 @@ def utc_now() -> datetime.datetime:
 
 class ParsableBase:
     if typing.TYPE_CHECKING:
-        _decoder: msgspec.json.Decoder[typing.Self]
+        _decoder: msgspec.json.Decoder[typing_ext.Self]
 
     @classmethod
-    def from_data(cls, obj: dict) -> typing.Self:
+    def from_data(cls, obj: dict) -> typing_ext.Self:
         return cls(**obj)
 
     @classmethod
-    def from_bytes(cls, obj: bytes) -> typing.Self:
+    def from_bytes(cls, obj: bytes) -> typing_ext.Self:
         return cls._decoder.decode(obj)  # type: ignore
 
     @classmethod
-    async def from_response(cls, resp: aiohttp.ClientResponse) -> typing.Self:
+    async def from_response(cls, resp: aiohttp.ClientResponse) -> typing_ext.Self:
         return cls.from_bytes(await resp.read())
 
 
@@ -107,7 +108,7 @@ class OAuth2TokenResponse(ParsableModel):
         return (self.issued + datetime.timedelta(seconds=self.expires_in)) > utc_now()
 
     @classmethod
-    def from_file(cls, path: str) -> typing.Self:
+    def from_file(cls, path: str) -> typing_ext.Self:
         with open(path, "rb") as f:
             return cls.from_bytes(f.read())
 
@@ -207,7 +208,7 @@ class AuthenticationManager:
         client_secret: str,
         relying_party: str,
         oauth: OAuth2TokenResponse,
-    ) -> typing.Self:
+    ) -> typing_ext.Self:
         self = cls(session, client_id, client_secret, relying_party)
         self.oauth = oauth
         await self.refresh_tokens()
@@ -221,7 +222,7 @@ class AuthenticationManager:
         client_secret: str,
         relying_party: str,
         oauth_data: dict,
-    ) -> typing.Self:
+    ) -> typing_ext.Self:
         self = cls(session, client_id, client_secret, relying_party)
         self.oauth = OAuth2TokenResponse.from_data(oauth_data)
         await self.refresh_tokens()
@@ -235,7 +236,7 @@ class AuthenticationManager:
         client_secret: str,
         relying_party: str,
         oauth_path: str,
-    ) -> typing.Self:
+    ) -> typing_ext.Self:
         self = cls(session, client_id, client_secret, relying_party)
         self.oauth = OAuth2TokenResponse.from_file(oauth_path)
         await self.refresh_tokens()
@@ -408,7 +409,7 @@ class BaseMicrosoftAPI(HandlerProtocol):
     @classmethod
     async def from_oauth(
         cls, client_id: str, client_secret: str, oauth: OAuth2TokenResponse
-    ) -> typing.Self:
+    ) -> typing_ext.Self:
         session = aiohttp_retry.RetryClient(
             retry_options=CustomRetry(
                 attempts=3,
@@ -429,7 +430,7 @@ class BaseMicrosoftAPI(HandlerProtocol):
     @classmethod
     async def from_data(
         cls, client_id: str, client_secret: str, oauth_data: dict
-    ) -> typing.Self:
+    ) -> typing_ext.Self:
         session = aiohttp_retry.RetryClient(
             retry_options=CustomRetry(
                 attempts=3,
@@ -450,7 +451,7 @@ class BaseMicrosoftAPI(HandlerProtocol):
     @classmethod
     async def from_file(
         cls, client_id: str, client_secret: str, oauth_path: str = "oauth.json"
-    ) -> typing.Self:
+    ) -> typing_ext.Self:
         session = aiohttp_retry.RetryClient(
             retry_options=CustomRetry(
                 attempts=3,

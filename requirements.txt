@@ -1,3 +1,4 @@
 aiohttp
 aiohttp_retry
+typing_extensions
 msgspec
