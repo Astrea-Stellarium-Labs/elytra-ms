@@ -4,4 +4,4 @@ from .core import *
 from .protocols import *
 from .xbox import *
 
-__version__ = "0.0.3"
+__version__ = "0.1.0"
