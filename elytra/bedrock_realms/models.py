@@ -58,8 +58,8 @@ class FullRealm(ParsableCamelModel):
     slots: NoneType
     member: bool
     subscription_refresh_status: NoneType
+    owner_uuid: str = msgspec.field(name="ownerUUID")
     club_id: typing.Optional[int] = None
-    owner_uuid: typing.Optional[str] = None
     motd: typing.Optional[str] = None
 
 
