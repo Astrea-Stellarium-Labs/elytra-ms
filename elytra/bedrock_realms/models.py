@@ -36,6 +36,15 @@ class WorldType(Enum):
     NORMAL = "NORMAL"
 
 
+class Player(CamelBaseModel):
+    uuid: str
+    name: NoneType
+    operator: bool
+    accepted: bool
+    online: bool
+    permission: Permission
+
+
 @add_decoder
 class FullRealm(ParsableCamelModel):
     id: int
@@ -49,16 +58,16 @@ class FullRealm(ParsableCamelModel):
     expired_trial: bool
     grace_period: bool
     world_type: WorldType
-    players: NoneType
     max_players: int
     minigame_name: NoneType
     minigame_id: NoneType
     minigame_image: NoneType
     active_slot: int
-    slots: NoneType
     member: bool
     subscription_refresh_status: NoneType
     owner_uuid: str = msgspec.field(name="ownerUUID")
+    slots: typing.Optional[typing.Any] = None
+    players: typing.Optional[list[Player]] = None
     club_id: typing.Optional[int] = None
     motd: typing.Optional[str] = None
 
@@ -66,15 +75,6 @@ class FullRealm(ParsableCamelModel):
 @add_decoder
 class MultiRealmResponse(ParsableCamelModel):
     servers: list[FullRealm]
-
-
-class Player(CamelBaseModel):
-    uuid: str
-    name: NoneType
-    operator: bool
-    accepted: bool
-    online: bool
-    permission: Permission
 
 
 class PartialRealm(CamelBaseModel):
