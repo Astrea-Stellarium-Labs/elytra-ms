@@ -48,10 +48,17 @@ def utc_now() -> datetime.datetime:
 class ParsableBase:
     if typing.TYPE_CHECKING:
         _decoder: msgspec.json.Decoder[typing_ext.Self]
+        _encoded_fields: frozenset[str]
 
     @classmethod
     def from_data(cls, obj: dict) -> typing_ext.Self:
-        return cls(**obj)
+        if not hasattr(cls, "_encoded_fields"):
+            cls._encoded_fields = frozenset(
+                f.encode_name for f in msgspec.structs.fields(cls)
+            )
+
+        filted_dict = {k: v for k, v in obj.items() if k in cls._encoded_fields}
+        return cls(**filted_dict)
 
     @classmethod
     def from_bytes(cls, obj: bytes) -> typing_ext.Self:
@@ -100,9 +107,9 @@ class OAuth2TokenResponse(ParsableModel):
     expires_in: int
     scope: str
     access_token: str
-    refresh_token: typing.Optional[str]
-    user_id: str
     issued: datetime.datetime = msgspec.field(default_factory=utc_now)
+    user_id: typing.Optional[str] = None
+    refresh_token: typing.Optional[str] = None
 
     def is_valid(self) -> bool:
         return (self.issued + datetime.timedelta(seconds=self.expires_in)) > utc_now()
@@ -268,6 +275,9 @@ class AuthenticationManager:
 
     async def refresh_oauth_token(self) -> OAuth2TokenResponse:
         """Refresh OAuth2 token."""
+        if not self.oauth.refresh_token:
+            raise ValueError("No refresh token present.")
+
         return await self._oauth2_token_request(
             {
                 "grant_type": "refresh_token",
