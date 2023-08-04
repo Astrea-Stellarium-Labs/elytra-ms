@@ -44,28 +44,34 @@ async def async_main() -> None:
 
         print(data["message"])  # noqa: T201
 
-        async with asyncio.Timeout(data["expires_in"]):
-            while True:
-                await asyncio.sleep(data["interval"])
-                async with session.post(
-                    "https://login.microsoftonline.com/consumers/oauth2/v2.0/token",
-                    data={
-                        "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
-                        "client_id": args.client_id,
-                        "device_code": data["device_code"],
-                    },
-                ) as r:
-                    resp_json = await r.json()
-                    if error := resp_json.get("error"):
-                        if error in {
-                            "authorization_declined",
-                            "expired_token",
-                            "bad_verification_code",
-                        }:
+        try:
+            async with asyncio.timeout(data["expires_in"]):
+                while True:
+                    await asyncio.sleep(data["interval"])
+                    async with session.post(
+                        "https://login.microsoftonline.com/consumers/oauth2/v2.0/token",
+                        data={
+                            "grant_type": (
+                                "urn:ietf:params:oauth:grant-type:device_code"
+                            ),
+                            "client_id": args.client_id,
+                            "device_code": data["device_code"],
+                        },
+                    ) as r:
+                        resp_json = await r.json()
+                        if error := resp_json.get("error"):
+                            if error in {
+                                "authorization_declined",
+                                "expired_token",
+                                "bad_verification_code",
+                            }:
+                                break
+                        else:
+                            success_response = resp_json
                             break
-                    else:
-                        success_response = resp_json
-                        break
+        except asyncio.TimeoutError:
+            print("Authentication timed out.")  # noqa: T201
+            return
 
         if not success_response:
             print("Authentication failed.")  # noqa: T201
