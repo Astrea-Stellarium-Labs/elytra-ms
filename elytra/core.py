@@ -42,7 +42,7 @@ class BetterResponse(aiohttp.ClientResponse):
 
 
 def utc_now() -> datetime.datetime:
-    return datetime.datetime.now(datetime.UTC)
+    return datetime.datetime.now(datetime.timezone.utc)
 
 
 class ParsableBase:
