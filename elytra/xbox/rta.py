@@ -92,10 +92,14 @@ class RTA:
         self.last_sequence_number += 1
         to_send = f'[{RTAType.SUBSCRIBE},{self.last_sequence_number},"{url}"]'
 
+        future = asyncio.Future()
+
         self.subscribe_listeners[self.last_sequence_number] = functools.partial(
-            self._subscribe_handle, dispatch_handler
+            self._subscribe_handle, dispatch_handler, future
         )
         await self._rta_ws.send_str(to_send)
+
+        await future
 
     async def unsubscribe(self, subscription_id: int) -> None:
         self.last_sequence_number += 1
@@ -110,15 +114,18 @@ class RTA:
         new_dispatch_handle: typing.Callable[
             [aiohttp.WSMessage], typing.Awaitable[typing.Any]
         ],
+        future: asyncio.Future,
         msg: aiohttp.WSMessage,
     ) -> None:
         data: list[typing.Any] = msg.json(loads=_loads_wrapper)
 
         if len(data) != 5:
             if len(data) == 4:
-                raise ValueError(f"Invalid RTA: {data[3]}")
+                future.set_exception(ValueError(f"Invalid RTA: {data[3]}"))
             else:
-                raise ValueError(f"Invalid RTA: {data}")
+                future.set_exception(ValueError(f"Invalid RTA: {data}"))
 
         self.endpoint_maps[data[3]] = new_dispatch_handle
         self.subscribe_listeners.pop(data[1], None)
+
+        future.set_result(None)
