@@ -137,11 +137,11 @@ class Club(CamelBaseModel):
     reported_items_count: int
     max_members_per_club: int
     max_members_in_game: int
-    owner_xuid: str
     founder_xuid: str
     title_deeplinks: TitleDeeplinks
     profile: Profile
     club_deeplinks: ClubDeeplinks
+    owner_xuid: typing.Optional[str] = None  # ???
     suspended_until_utc: typing.Optional[typing.Any] = None
     roster: typing.Optional[typing.Any] = None
     target_roles: typing.Optional[typing.Any] = None
