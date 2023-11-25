@@ -18,6 +18,7 @@ __all__ = (
     "ActivityListResponse",
     "PendingInvite",
     "PendingInviteResponse",
+    "RealmCountResponse",
 )
 
 
@@ -104,3 +105,10 @@ class PendingInvite(CamelBaseModel):
 @add_decoder
 class PendingInviteResponse(ParsableCamelModel):
     invites: list[PendingInvite]
+
+
+@add_decoder
+class RealmCountResponse(ParsableCamelModel):
+    realm_count: int = msgspec.field(name="member_count")
+    realm_limit: int = msgspec.field(name="member_limit")
+    over_limit: bool

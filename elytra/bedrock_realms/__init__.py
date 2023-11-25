@@ -12,6 +12,7 @@ __all__ = (
     "Player",
     "PartialRealm",
     "ActivityListResponse",
+    "RealmCountResponse",
     "PendingInvite",
     "PendingInviteResponse",
     "BedrockRealmsAPI",
@@ -70,3 +71,8 @@ class BedrockRealmsAPI(BaseMicrosoftAPI):
 
     async def leave_realm(self, realm_id: int | str) -> None:
         await self.delete(f"invites/{realm_id}")
+
+    async def fetch_realm_count(self) -> RealmCountResponse:
+        return await RealmCountResponse.from_response(
+            await self.get("clubs/membercount")
+        )
