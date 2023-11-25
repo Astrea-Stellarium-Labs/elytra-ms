@@ -109,6 +109,6 @@ class PendingInviteResponse(ParsableCamelModel):
 
 @add_decoder
 class RealmCountResponse(ParsableCamelModel):
-    realm_count: int = msgspec.field(name="member_count")
-    realm_limit: int = msgspec.field(name="member_limit")
+    realm_count: int = msgspec.field(name="memberCount")
+    realm_limit: int = msgspec.field(name="memberLimit")
     over_limit: bool
