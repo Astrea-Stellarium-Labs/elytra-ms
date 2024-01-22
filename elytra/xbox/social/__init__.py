@@ -7,12 +7,10 @@ __all__ = ("SocialHandler",)
 
 class SocialHandler(HandlerProtocol):
     @typing.overload
-    async def add_friend(self, *, xuid: str | int, **kwargs: typing.Any) -> None:
-        ...
+    async def add_friend(self, *, xuid: str | int, **kwargs: typing.Any) -> None: ...
 
     @typing.overload
-    async def add_friend(self, *, gamertag: str, **kwargs: typing.Any) -> None:
-        ...
+    async def add_friend(self, *, gamertag: str, **kwargs: typing.Any) -> None: ...
 
     async def add_friend(
         self,
@@ -32,12 +30,10 @@ class SocialHandler(HandlerProtocol):
         await self.put(url, headers=HEADERS, **kwargs)
 
     @typing.overload
-    async def remove_friend(self, *, xuid: str | int, **kwargs: typing.Any) -> None:
-        ...
+    async def remove_friend(self, *, xuid: str | int, **kwargs: typing.Any) -> None: ...
 
     @typing.overload
-    async def remove_friend(self, *, gamertag: str, **kwargs: typing.Any) -> None:
-        ...
+    async def remove_friend(self, *, gamertag: str, **kwargs: typing.Any) -> None: ...
 
     async def remove_friend(
         self,
