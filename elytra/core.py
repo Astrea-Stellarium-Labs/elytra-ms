@@ -264,14 +264,12 @@ class AuthenticationManager:
         self, authorization_code: str, redirect_uri: str
     ) -> OAuth2TokenResponse:
         """Request OAuth2 token."""
-        return await self._oauth2_token_request(
-            {
-                "grant_type": "authorization_code",
-                "code": authorization_code,
-                "scope": "Xboxlive.signin Xboxlive.offline_access",
-                "redirect_uri": redirect_uri,
-            }
-        )
+        return await self._oauth2_token_request({
+            "grant_type": "authorization_code",
+            "code": authorization_code,
+            "scope": "Xboxlive.signin Xboxlive.offline_access",
+            "redirect_uri": redirect_uri,
+        })
 
     async def refresh_oauth_token(self) -> OAuth2TokenResponse:
         """Refresh OAuth2 token."""
