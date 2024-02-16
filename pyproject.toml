@@ -11,6 +11,9 @@ readme = "README.md"
 license = "MIT"
 classifiers = [
     "Development Status :: 3 - Alpha",
+    "Framework :: AsyncIO",
+    "Framework :: Trio",
+    "Framework :: AnyIO",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
