@@ -1,8 +1,8 @@
 import argparse
-import asyncio
 import os
 
-import aiohttp
+import anyio
+import httpx
 import msgspec
 
 
@@ -27,64 +27,63 @@ async def async_main() -> None:
             "You must provide a client ID either via the CLI or environment variables."
         )
 
-    async with aiohttp.ClientSession() as session:
-        async with session.post(
-            "https://login.microsoftonline.com/consumers/oauth2/v2.0/devicecode",
-            data={
-                "client_id": args.client_id,
-                "scope": "Xboxlive.signin Xboxlive.offline_access",
-            },
-        ) as r:
-            data = await r.json()
-            if not r.ok:
-                print(data)  # noqa: T201
-                return
+    session = httpx.AsyncClient()
 
-        success_response: dict | None = None
+    r = await session.post(
+        "https://login.microsoftonline.com/consumers/oauth2/v2.0/devicecode",
+        data={
+            "client_id": args.client_id,
+            "scope": "Xboxlive.signin Xboxlive.offline_access",
+        },
+    )
+    data = await r.json()
+    if r.is_error:
+        print(data)  # noqa: T201
+        return
 
-        print(data["message"])  # noqa: T201
+    success_response: dict | None = None
 
-        try:
-            async with asyncio.timeout(data["expires_in"]):
-                while True:
-                    await asyncio.sleep(data["interval"])
-                    async with session.post(
-                        "https://login.microsoftonline.com/consumers/oauth2/v2.0/token",
-                        data={
-                            "grant_type": (
-                                "urn:ietf:params:oauth:grant-type:device_code"
-                            ),
-                            "client_id": args.client_id,
-                            "device_code": data["device_code"],
-                        },
-                    ) as r:
-                        resp_json = await r.json()
-                        if error := resp_json.get("error"):
-                            if error in {
-                                "authorization_declined",
-                                "expired_token",
-                                "bad_verification_code",
-                            }:
-                                break
-                        else:
-                            success_response = resp_json
-                            break
-        except asyncio.TimeoutError:
-            print("Authentication timed out.")  # noqa: T201
-            return
+    print(data["message"])  # noqa: T201
 
-        if not success_response:
-            print("Authentication failed.")  # noqa: T201
-            return
+    try:
+        async with anyio.fail_after(data["expires_in"]):
+            while True:
+                await anyio.sleep(data["interval"])
+                r = await session.post(
+                    "https://login.microsoftonline.com/consumers/oauth2/v2.0/token",
+                    data={
+                        "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+                        "client_id": args.client_id,
+                        "device_code": data["device_code"],
+                    },
+                )
+                resp_json = await r.json()
+                if error := resp_json.get("error"):
+                    if error in {
+                        "authorization_declined",
+                        "expired_token",
+                        "bad_verification_code",
+                    }:
+                        break
+                else:
+                    success_response = resp_json
+                    break
+    except TimeoutError:
+        print("Authentication timed out.")  # noqa: T201
+        return
 
-        with open(args.file, "wb") as f:
-            f.write(msgspec.json.encode(success_response))
+    if not success_response:
+        print("Authentication failed.")  # noqa: T201
+        return
 
-        print("Authentication successful!")  # noqa: T201
+    with open(args.file, "wb") as f:
+        f.write(msgspec.json.encode(success_response))
+
+    print("Authentication successful!")  # noqa: T201
 
 
 def main() -> None:
-    asyncio.run(async_main())
+    anyio.run(async_main())
 
 
 if __name__ == "__main__":

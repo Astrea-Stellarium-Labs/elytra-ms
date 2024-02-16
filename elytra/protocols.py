@@ -1,6 +1,6 @@
 import typing
 
-import aiohttp
+import httpx
 
 
 class HandlerProtocol(typing.Protocol):
@@ -14,10 +14,9 @@ class HandlerProtocol(typing.Protocol):
         headers: typing.Optional[dict] = None,
         *,
         force_refresh: bool = False,
-        dont_handle_ratelimit: bool = False,
         **kwargs: typing.Any,
-    ) -> aiohttp.ClientResponse:  # type: ignore
-        pass
+    ) -> httpx.Response:
+        ...
 
     async def get(
         self,
@@ -27,8 +26,8 @@ class HandlerProtocol(typing.Protocol):
         params: typing.Optional[dict] = None,
         headers: typing.Optional[dict] = None,
         **kwargs: typing.Any,
-    ) -> aiohttp.ClientResponse:  # type: ignore
-        pass
+    ) -> httpx.Response:
+        ...
 
     async def post(
         self,
@@ -38,8 +37,8 @@ class HandlerProtocol(typing.Protocol):
         params: typing.Optional[dict] = None,
         headers: typing.Optional[dict] = None,
         **kwargs: typing.Any,
-    ) -> aiohttp.ClientResponse:  # type: ignore
-        pass
+    ) -> httpx.Response:
+        ...
 
     async def put(
         self,
@@ -49,8 +48,8 @@ class HandlerProtocol(typing.Protocol):
         params: typing.Optional[dict] = None,
         headers: typing.Optional[dict] = None,
         **kwargs: typing.Any,
-    ) -> aiohttp.ClientResponse:  # type: ignore
-        pass
+    ) -> httpx.Response:
+        ...
 
     async def delete(
         self,
@@ -60,5 +59,5 @@ class HandlerProtocol(typing.Protocol):
         params: typing.Optional[dict] = None,
         headers: typing.Optional[dict] = None,
         **kwargs: typing.Any,
-    ) -> aiohttp.ClientResponse:  # type: ignore
-        pass
+    ) -> httpx.Response:
+        ...

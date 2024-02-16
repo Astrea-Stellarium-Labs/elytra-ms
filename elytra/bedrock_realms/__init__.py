@@ -51,7 +51,7 @@ class BedrockRealmsAPI(BaseMicrosoftAPI):
 
     async def fetch_pending_invite_count(self) -> int:
         resp = await self.get("invites/count/pending")
-        return int(await resp.text())
+        return int(await resp.aread())
 
     async def fetch_pending_invites(self) -> PendingInviteResponse:
         return await PendingInviteResponse.from_response(

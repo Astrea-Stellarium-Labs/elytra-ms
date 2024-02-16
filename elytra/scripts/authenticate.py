@@ -1,16 +1,17 @@
 import argparse
-import asyncio
+import contextlib
 import os
-from urllib.parse import urlencode
+from email.utils import formatdate
+from urllib.parse import parse_qsl, urlencode
 
-import aiohttp
-import aiohttp.web
-import aiohttp_retry
+import anyio
+import httpx
 import msgspec
+from anyio.abc import SocketStream
 
 from elytra import AuthenticationManager
 
-code: str | None = None
+code: str = ""
 
 
 def generate_authorization_url(client_id: str, redirect_uri: str) -> str:
@@ -26,32 +27,65 @@ def generate_authorization_url(client_id: str, redirect_uri: str) -> str:
     return f"https://login.live.com/oauth20_authorize.srf?{urlencode(query_params)}"
 
 
-routes = aiohttp.web.RouteTableDef()
+async def respond_to_request(client: SocketStream, response_status: str) -> None:
+    resp = (
+        f"HTTP/1.1 {response_status}\r\nDate: {formatdate(usegmt=True)}\r\nServer:"
+        " elytra-ms\r\n\r\n"
+    )
+    await client.send(resp.encode())
 
 
-@routes.get("/auth/callback")
-async def parse_response(req: aiohttp.web.Request) -> aiohttp.web.Response:
+async def respond_with_text(
+    client: SocketStream, response_status: str, text: str
+) -> None:
+    resp = (
+        f"HTTP/1.1 {response_status}\r\nContent-Type: text/plain;"
+        f" charset=utf-8\r\nContent-Length: {len(text)}\r\nDate:"
+        f" {formatdate(usegmt=True)}\r\nServer: elytra-ms\r\n\r\n{text}"
+    )
+    await client.send(resp.encode())
+
+
+async def handle_microsoft(client: SocketStream) -> None:
     global code
 
-    try:
-        if req.query.get("error"):
-            return aiohttp.web.Response(
-                text=f"Error: {req.query.get('error_description')}", status=400
-            )
+    async with client:
+        raw_data = await client.receive()
 
-        if gotten_code := req.query.get("code"):
+        try:
+            data = raw_data.decode()
+        except UnicodeDecodeError:
+            return await respond_to_request(client, "400 Bad Request")
+
+        if not data.startswith("GET /auth/callback?code="):
+            return await respond_to_request(client, "400 Bad Request")
+
+        first_couple_of_entries = data.split(maxsplit=2)
+
+        url_ish = first_couple_of_entries[1]
+        query_string = url_ish.split("?", 1)[1]
+        query_dict = dict(parse_qsl(query_string))
+
+        if query_dict.get("error"):
+            await respond_with_text(
+                client,
+                "400 Bad Request",
+                f"Error: {query_dict.get('error_description')}",
+            )
+        elif gotten_code := query_dict.get("code"):
             code = gotten_code
-            return aiohttp.web.Response(
-                text="Success! You may now close this tab and go back to the terminal."
+            await respond_with_text(
+                client,
+                "200 OK",
+                "Success! You may now close this tab and go back to the terminal.",
+            )
+        else:
+            await respond_with_text(
+                client, "400 Bad Request", "Error: No code was provided."
             )
 
-        return aiohttp.web.Response(text="Error: No code was provided.", status=400)
-    finally:
-        app["event"].set()
-
-
-app = aiohttp.web.Application()
-app.add_routes(routes)
+        await client.aclose()
+        raise anyio.EndOfStream
 
 
 async def async_main() -> None:
@@ -83,42 +117,38 @@ async def async_main() -> None:
             " variables."
         )
 
-    app["event"] = asyncio.Event()
-
     redirect_uri = "http://localhost:8080/auth/callback"
-
-    runner = aiohttp.web.AppRunner(app)
-    await runner.setup()
-    site = aiohttp.web.TCPSite(runner, "localhost", 8080)
-    await site.start()
 
     print(  # noqa: T201
         f"Please visit {generate_authorization_url(args.client_id, redirect_uri)} to"
         " authenticate."
     )
 
-    await app["event"].wait()
-    await runner.cleanup()
+    listener = await anyio.create_tcp_listener(local_host="localhost", local_port=8080)
 
-    if code:
-        auth_mgr = AuthenticationManager(
-            aiohttp_retry.RetryClient(),
-            args.client_id,
-            args.client_secret,
-            "http://xboxlive.com",
-        )
-        oauth = await auth_mgr.request_oauth_token(code, redirect_uri)
-        with open(args.file, mode="wb") as f:
-            f.write(msgspec.json.encode(oauth))
+    with contextlib.suppress(anyio.EndOfStream):
+        await listener.serve(handle_microsoft)
 
-        await auth_mgr.close()
-        print("Authentication successful!")  # noqa: T201
-    else:
+    if not code:
         print("Authentication failed.")  # noqa: T201
+        return
+
+    auth_mgr = AuthenticationManager(
+        httpx.AsyncClient(http2=True),
+        args.client_id,
+        args.client_secret,
+        "http://xboxlive.com",
+    )
+    oauth = await auth_mgr.request_oauth_token(code, redirect_uri)
+    with open(args.file, mode="wb") as f:
+        f.write(msgspec.json.encode(oauth))
+
+    await auth_mgr.close()
+    print("Authentication successful!")  # noqa: T201
 
 
 def main() -> None:
-    asyncio.run(async_main())
+    anyio.run(async_main)
 
 
 if __name__ == "__main__":

@@ -1,14 +1,12 @@
-import asyncio
 import datetime
 import functools
 import typing
 
-import aiohttp
-import aiohttp_retry
+import httpx
 import msgspec
 import typing_extensions as typing_ext
-from aiohttp import ClientResponse
 
+from elytra import retry_transport
 from elytra.protocols import HandlerProtocol
 
 __all__ = (
@@ -24,21 +22,6 @@ __all__ = (
     "MicrosoftAPIException",
     "BaseMicrosoftAPI",
 )
-
-
-class BetterResponse(aiohttp.ClientResponse):
-    def raise_for_status(self) -> None:
-        # i just dont want the resp to close lol
-        if not self.ok:
-            # reason should always be not None for a started response
-            assert self.reason is not None  # noqa: S101
-            raise aiohttp.ClientResponseError(
-                self.request_info,
-                self.history,
-                status=self.status,
-                message=self.reason,
-                headers=self.headers,
-            )
 
 
 def utc_now() -> datetime.datetime:
@@ -65,8 +48,8 @@ class ParsableBase:
         return cls._decoder.decode(obj)  # type: ignore
 
     @classmethod
-    async def from_response(cls, resp: aiohttp.ClientResponse) -> typing_ext.Self:
-        return cls.from_bytes(await resp.read())
+    async def from_response(cls, resp: httpx.Response) -> typing_ext.Self:
+        return cls.from_bytes(await resp.aread())
 
 
 class ParsableModel(msgspec.Struct, ParsableBase, kw_only=True):
@@ -182,7 +165,7 @@ class AuthenticationManager:
         "xsts_token",
     )
 
-    session: aiohttp_retry.RetryClient
+    session: httpx.AsyncClient
     client_id: str
     client_secret: str
     relying_party: str
@@ -193,7 +176,7 @@ class AuthenticationManager:
 
     def __init__(
         self,
-        session: aiohttp_retry.RetryClient,
+        session: httpx.AsyncClient,
         client_id: str,
         client_secret: str,
         relying_party: str,
@@ -210,7 +193,7 @@ class AuthenticationManager:
     @classmethod
     async def from_ouath(
         cls,
-        session: aiohttp_retry.RetryClient,
+        session: httpx.AsyncClient,
         client_id: str,
         client_secret: str,
         relying_party: str,
@@ -224,7 +207,7 @@ class AuthenticationManager:
     @classmethod
     async def from_data(
         cls,
-        session: aiohttp_retry.RetryClient,
+        session: httpx.AsyncClient,
         client_id: str,
         client_secret: str,
         relying_party: str,
@@ -238,7 +221,7 @@ class AuthenticationManager:
     @classmethod
     async def from_file(
         cls,
-        session: aiohttp_retry.RetryClient,
+        session: httpx.AsyncClient,
         client_id: str,
         client_secret: str,
         relying_party: str,
@@ -346,60 +329,43 @@ class AuthenticationManager:
                 self.xsts_token = await self.request_xsts_token()
 
     async def close(self) -> None:
-        await self.session.close()
+        await self.session.aclose()
 
 
 class MicrosoftAPIException(Exception):
-    def __init__(self, resp: aiohttp.ClientResponse, error: Exception) -> None:
+    def __init__(self, resp: httpx.Response, error: Exception) -> None:
         self.resp = resp
         self.error = error
 
         super().__init__(
             "An error occured when trying to access this resource: code"
-            f" {resp.status}.\nError: {error}"
+            f" {resp.status_code}.\nError: {error}"
         )
 
 
 try:
     import orjson
 
-    def _dumps_wrapper(obj: typing.Any) -> str:
-        return orjson.dumps(obj).decode("utf-8")
+    def _dumps_wrapper(obj: typing.Any) -> bytes:
+        return orjson.dumps(obj)
 
 except ImportError:
     encoder = msgspec.json.Encoder()
 
-    def _dumps_wrapper(obj: typing.Any) -> str:
-        return encoder.encode(obj).decode("utf-8")
+    def _dumps_wrapper(obj: typing.Any) -> bytes:
+        return encoder.encode(obj)
 
 
-class CustomRetry(aiohttp_retry.JitterRetry):
-    def get_timeout(
-        self, attempt: int, response: ClientResponse | None = None
-    ) -> float:
-        if not response:
-            return super().get_timeout(attempt, response)
-
-        if not response.ok and response.headers.get("Retry-After"):
-            timeout = self._start_timeout
-            self._start_timeout = 0.5
-            result = super().get_timeout(attempt, response)
-            self._start_timeout = timeout
-            return result
-
-        return super().get_timeout(attempt, response)
-
-
-async def evaluate_response_callback(
-    auth_mgr: AuthenticationManager, resp: aiohttp.ClientResponse
+async def should_retry(
+    auth_mgr: AuthenticationManager, response: httpx.Response
 ) -> bool:
-    if resp.status == 401:
-        await auth_mgr.refresh_tokens(force_refresh=True)
+    if not response.is_error:
         return False
 
-    if not resp.ok and (retry_after := resp.headers.get("Retry-After")):
-        await asyncio.sleep(float(retry_after))
-        return False
+    if response.status_code == 401:
+        await auth_mgr.refresh_tokens(force_refresh=True)
+        return True
+
     return True
 
 
@@ -407,11 +373,11 @@ class BaseMicrosoftAPI(HandlerProtocol):
     RELYING_PATH: str = "http://xboxlive.com"
     BASE_URL: str = ""
 
-    session: aiohttp_retry.RetryClient
+    session: httpx.AsyncClient
     auth_mgr: AuthenticationManager
 
     def __init__(
-        self, session: aiohttp_retry.RetryClient, auth_mgr: AuthenticationManager
+        self, session: httpx.AsyncClient, auth_mgr: AuthenticationManager
     ) -> None:
         self.session = session
         self.auth_mgr = auth_mgr
@@ -420,63 +386,48 @@ class BaseMicrosoftAPI(HandlerProtocol):
     async def from_oauth(
         cls, client_id: str, client_secret: str, oauth: OAuth2TokenResponse
     ) -> typing_ext.Self:
-        session = aiohttp_retry.RetryClient(
-            retry_options=CustomRetry(
-                attempts=3,
-                start_timeout=0.1,
-                random_interval_size=0.35,
-            ),
-            response_class=BetterResponse,
-            json_serialize=_dumps_wrapper,
+        transport = retry_transport.RetryTransport(
+            wrapped_transport=httpx.AsyncHTTPTransport(http2=True, retries=2),
+            jitter_ratio=0.3,
         )
+        session = httpx.AsyncClient(transport=transport)
         auth_mgr = await AuthenticationManager.from_ouath(
             session, client_id, client_secret, cls.RELYING_PATH, oauth
         )
-        session._retry_options.evaluate_response_callback = functools.partial(
-            evaluate_response_callback, auth_mgr
-        )
+
+        session._transport._should_retry_async = functools.partial(should_retry, auth_mgr)  # type: ignore
         return cls(session, auth_mgr)
 
     @classmethod
     async def from_data(
         cls, client_id: str, client_secret: str, oauth_data: dict
     ) -> typing_ext.Self:
-        session = aiohttp_retry.RetryClient(
-            retry_options=CustomRetry(
-                attempts=3,
-                start_timeout=0.1,
-                random_interval_size=0.35,
-            ),
-            response_class=BetterResponse,
-            json_serialize=_dumps_wrapper,
+        transport = retry_transport.RetryTransport(
+            wrapped_transport=httpx.AsyncHTTPTransport(http2=True, retries=2),
+            jitter_ratio=0.3,
         )
+        session = httpx.AsyncClient(transport=transport)
         auth_mgr = await AuthenticationManager.from_data(
             session, client_id, client_secret, cls.RELYING_PATH, oauth_data
         )
-        session._retry_options.evaluate_response_callback = functools.partial(
-            evaluate_response_callback, auth_mgr
-        )
+
+        session._transport._should_retry_async = functools.partial(should_retry, auth_mgr)  # type: ignore
         return cls(session, auth_mgr)
 
     @classmethod
     async def from_file(
         cls, client_id: str, client_secret: str, oauth_path: str = "oauth.json"
     ) -> typing_ext.Self:
-        session = aiohttp_retry.RetryClient(
-            retry_options=CustomRetry(
-                attempts=3,
-                start_timeout=0.1,
-                random_interval_size=0.35,
-            ),
-            response_class=BetterResponse,
-            json_serialize=_dumps_wrapper,
+        transport = retry_transport.RetryTransport(
+            wrapped_transport=httpx.AsyncHTTPTransport(http2=True, retries=2),
+            jitter_ratio=0.3,
         )
+        session = httpx.AsyncClient(transport=transport)
         auth_mgr = await AuthenticationManager.from_file(
             session, client_id, client_secret, cls.RELYING_PATH, oauth_path
         )
-        session._retry_options.evaluate_response_callback = functools.partial(
-            evaluate_response_callback, auth_mgr
-        )
+
+        session._transport._should_retry_async = functools.partial(should_retry, auth_mgr)  # type: ignore
         return cls(session, auth_mgr)
 
     @property
@@ -484,7 +435,7 @@ class BaseMicrosoftAPI(HandlerProtocol):
         return {"Authorization": self.auth_mgr.xsts_token.authorization_header_value}
 
     async def close(self) -> None:
-        await self.session.close()
+        await self.session.aclose()
 
     async def request(
         self,
@@ -496,9 +447,8 @@ class BaseMicrosoftAPI(HandlerProtocol):
         headers: typing.Optional[dict] = None,
         *,
         force_refresh: bool = False,
-        dont_handle_ratelimit: bool = False,
         **kwargs: typing.Any,
-    ) -> aiohttp.ClientResponse:
+    ) -> httpx.Response:
         if not headers:
             headers = {}
         if not params:
@@ -507,18 +457,20 @@ class BaseMicrosoftAPI(HandlerProtocol):
         # refresh token as needed
         await self.auth_mgr.refresh_tokens(force_refresh=force_refresh)
 
+        if json:
+            if data:
+                raise ValueError("Cannot use both json and data.")
+
+            kwargs["content"] = _dumps_wrapper(json)
+            headers["Content-Type"] = "application/json"
+
         req_kwargs = {
             "method": method,
             "url": f"{self.BASE_URL}{url}",
             "headers": headers | self.base_headers,
-            "json": json,
             "data": data,
             "params": params,
         } | kwargs
-        if dont_handle_ratelimit:
-            req_kwargs["retry_options"] = aiohttp_retry.JitterRetry(
-                random_interval_size=0.2
-            )
 
         resp = await self.session.request(**req_kwargs)
 
@@ -536,7 +488,7 @@ class BaseMicrosoftAPI(HandlerProtocol):
         params: typing.Optional[dict] = None,
         headers: typing.Optional[dict] = None,
         **kwargs: typing.Any,
-    ) -> aiohttp.ClientResponse:
+    ) -> httpx.Response:
         return await self.request(
             "GET",
             url,
@@ -555,7 +507,7 @@ class BaseMicrosoftAPI(HandlerProtocol):
         params: typing.Optional[dict] = None,
         headers: typing.Optional[dict] = None,
         **kwargs: typing.Any,
-    ) -> aiohttp.ClientResponse:
+    ) -> httpx.Response:
         return await self.request(
             "POST",
             url,
@@ -574,7 +526,7 @@ class BaseMicrosoftAPI(HandlerProtocol):
         params: typing.Optional[dict] = None,
         headers: typing.Optional[dict] = None,
         **kwargs: typing.Any,
-    ) -> aiohttp.ClientResponse:
+    ) -> httpx.Response:
         return await self.request(
             "PUT",
             url,
@@ -593,7 +545,7 @@ class BaseMicrosoftAPI(HandlerProtocol):
         params: typing.Optional[dict] = None,
         headers: typing.Optional[dict] = None,
         **kwargs: typing.Any,
-    ) -> aiohttp.ClientResponse:
+    ) -> httpx.Response:
         return await self.request(
             "DELETE",
             url,

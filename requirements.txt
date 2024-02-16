@@ -1,4 +1,5 @@
-aiohttp
-aiohttp_retry
+httpx
+httpx-ws
+python-dateutil
 typing_extensions
 msgspec
