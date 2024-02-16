@@ -1,14 +1,19 @@
+import contextlib
 import functools
+import inspect
+import secrets
 import traceback
 import typing
 from concurrent.futures import Future
 from enum import IntEnum
 
 import anyio
-import httpx
-import httpx_ws
-import typing_extensions as typing_ext
-from anyio.abc import TaskGroup
+from anyio.streams.tls import TLSStream
+from websockets.client import ClientProtocol
+from websockets.frames import Frame, Opcode
+from websockets.uri import parse_uri
+
+__all__ = ("RTAType", "RTA")
 
 try:
     import orjson
@@ -25,6 +30,10 @@ except ImportError:
         return decoder.decode(json_input)
 
 
+def _generate_id() -> bytes:
+    return secrets.token_bytes()
+
+
 class RTAType(IntEnum):
     SUBSCRIBE = 1
     UNSUBSCRIBE = 2
@@ -32,13 +41,20 @@ class RTAType(IntEnum):
     RSYNC = 4
 
 
-class RTA:
-    def __init__(self, session: httpx.AsyncClient) -> None:
-        raise NotImplementedError("RTA is not implemented with httpx yet.")
+PING_INTERVAL = 20.0
+PING_TIMEOUT = 20.0
 
-        self._rta_session: httpx.AsyncClient = session
-        self._rta_ws: httpx_ws.AsyncWebSocketSession = None  # type: ignore
-        self._rta_receive_tg: TaskGroup | None = None
+
+class RTA:
+    def __init__(self, headers: dict | None = None) -> None:
+        self.uri = parse_uri("wss://rta.xboxlive.com/connect")
+        self.headers = headers or {}
+        self.protocol = ClientProtocol(self.uri)
+        self.stream: TLSStream | None = None
+
+        self.tg = anyio.create_task_group()
+        self.exit_stack = contextlib.AsyncExitStack()
+
         self.last_sequence_number = 0
         self.endpoint_maps: dict[
             int, typing.Callable[[list[typing.Any]], typing.Awaitable[typing.Any]]
@@ -46,47 +62,147 @@ class RTA:
         self.subscribe_listeners: dict[
             int, typing.Callable[[list[typing.Any]], typing.Awaitable[typing.Any]]
         ] = {}
+        self.future_set: set[Future] = set()
+
+        self.ping_tasks: dict[bytes, anyio.Event] = {}
 
     @classmethod
-    async def establish(cls, base_headers: dict[str, str]) -> typing_ext.Self:
-        session = httpx.AsyncClient(headers=base_headers)
-        rta = cls(session)
-        await rta._connect()
-        return rta
+    async def establish(cls, headers: dict | None = None) -> typing.Self:
+        self = cls(headers=headers)
+        await self.connect()
+        return self
 
-    async def _connect(self) -> None:
-        self._rta_ws = await httpx_ws.aconnect_ws(
-            "https://rta.xboxlive.com/connect", self._rta_session
-        ).__aenter__()
-        self._rta_receive_tg = await anyio.create_task_group().__aenter__()
-        self._rta_receive_tg.start_soon(self._receive)
+    async def connect(self) -> None:
+        self.stream = await anyio.connect_tcp(
+            self.uri.host, self.uri.port, tls=True, tls_standard_compatible=False
+        )
+
+        request = self.protocol.connect()
+        request.headers.update(self.headers)
+        self.protocol.send_request(request)
+
+        for data in self.protocol.data_to_send():
+            await self.stream.send(data)
+
+        try:
+            data = await self.stream.receive()
+        except anyio.EndOfStream:
+            self.protocol.receive_eof()
+            for data in self.protocol.data_to_send():
+                await self.stream.send(data)
+
+            raise ConnectionError("Connection closed.") from None
+
+        self.protocol.receive_data(data)
+
+        if self.protocol.handshake_exc is not None:
+            raise self.protocol.handshake_exc
+
+        await self.exit_stack.enter_async_context(self.tg)
+        self.tg.start_soon(self._receive)
+        self.tg.start_soon(self._send_ping)
 
     async def _receive(self) -> None:
-        while True:
-            try:
-                msg = await self._rta_ws.receive_text()
-            except httpx_ws.WebSocketDisconnect:
-                break
-            except httpx_ws.WebSocketInvalidTypeReceived as e:
-                raise ValueError("Invalid RTA") from e
-            except httpx_ws.HTTPXWSException:
-                break
+        if not self.stream:
+            raise ConnectionError("Stream hasn't been started yet.")
 
-            data: list[typing.Any] = _loads_wrapper(msg)
+        try:
+            while True:
+                try:
+                    data = await self.stream.receive()
+                except anyio.EndOfStream:
+                    self.protocol.receive_eof()
+                    for data in self.protocol.data_to_send():
+                        await self.stream.send(data)
 
-            try:
-                if data[0] == RTAType.SUBSCRIBE:
-                    await self.subscribe_listeners[data[1]](data)
-                elif data[0] == RTAType.EVENT:
-                    await self.endpoint_maps[data[1]](data)
-            except Exception as e:
-                traceback.print_exception(e)
+                    await self.close()
+                    raise ConnectionError("Received EOF.") from None
+                except anyio.ClosedResourceError:
+                    return
 
-    async def close(self) -> None:
-        if self._rta_receive_tg:
-            await self._rta_receive_tg.__aexit__(None, None, None)
-        await self._rta_ws.close()
-        await self._rta_session.aclose()
+                self.protocol.receive_data(data)
+
+                if self.protocol.handshake_exc is not None:
+                    await self.close()
+                    raise self.protocol.handshake_exc
+
+                events = self.protocol.events_received()
+
+                for event in events:
+                    if isinstance(event, Frame):
+                        if event.opcode == Opcode.CLOSE:
+                            await self.close()
+                            return
+
+                        if event.opcode == Opcode.PING:
+                            self.protocol.send_pong(event.data)
+                            for data in self.protocol.data_to_send():
+                                await self.stream.send(data)
+
+                        elif (
+                            event.opcode == Opcode.PONG
+                            and bytes(event.data) in self.ping_tasks
+                        ):
+                            self.ping_tasks[bytes(event.data)].set()
+
+                        elif event.opcode in {Opcode.BINARY, Opcode.TEXT}:
+                            await self._handle_data(event.data)
+
+        except anyio.get_cancelled_exc_class():
+            return
+
+        except Exception as e:
+            traceback.print_exception(e)
+            raise e
+
+    async def _send_ping(self) -> None:
+        if not self.stream:
+            raise ConnectionError("Stream hasn't been started yet.")
+
+        try:
+            while True:
+                await anyio.sleep(PING_INTERVAL)
+
+                ping_id = _generate_id()
+                self.ping_tasks[ping_id] = anyio.Event()
+
+                self.protocol.send_ping(ping_id)
+                for data in self.protocol.data_to_send():
+                    await self.stream.send(data)
+
+                async with anyio.fail_after(PING_TIMEOUT):
+                    await self.ping_tasks[ping_id].wait()
+                    self.ping_tasks.pop(ping_id)
+
+        except TimeoutError:
+            print("Ping timeout.")  # noqa: T201
+            await self.close()
+
+        except anyio.get_cancelled_exc_class():
+            return
+
+        except Exception as e:
+            traceback.print_exception(e)
+            raise e
+
+    async def _send_str(self, data: str) -> None:
+        if not self.stream:
+            raise ConnectionError("Connection closed.")
+
+        self.protocol.send_text(data.encode())
+        for data_to_send in self.protocol.data_to_send():
+            await self.stream.send(data_to_send)
+
+    async def _handle_data(self, data: bytes) -> None:
+        if not self.stream:
+            raise ConnectionError("Connection closed.")
+
+        parsed_data: list[typing.Any] = _loads_wrapper(data)
+
+        if parsed_data[0] == RTAType.SUBSCRIBE:
+            await self.subscribe_listeners[parsed_data[1]](parsed_data)
+        elif parsed_data[0] == RTAType.EVENT:
+            self.tg.start_soon(self.endpoint_maps[parsed_data[1]], parsed_data)
 
     async def subscribe(
         self,
@@ -95,6 +211,10 @@ class RTA:
             [list[typing.Any]], typing.Awaitable[typing.Any]
         ],
     ) -> None:
+        if not inspect.iscoroutinefunction(dispatch_handler):
+            raise ValueError("dispatch_handler must be a coroutine function.")
+
+        url = url.removesuffix("/")
         self.last_sequence_number += 1
         to_send = f'[{RTAType.SUBSCRIBE},{self.last_sequence_number},"{url}"]'
 
@@ -103,16 +223,17 @@ class RTA:
         self.subscribe_listeners[self.last_sequence_number] = functools.partial(
             self._subscribe_handle, dispatch_handler, future
         )
-        await self._rta_ws.send_text(to_send)
+        await self._send_str(to_send)
 
-        future.result()
+        self.future_set.add(future)
+        await anyio.to_thread.run_sync(future.result)
 
     async def unsubscribe(self, subscription_id: int) -> None:
         self.last_sequence_number += 1
         to_send = (
             f"[{RTAType.UNSUBSCRIBE},{self.last_sequence_number}, {subscription_id}]"
         )
-        await self._rta_ws.send_text(to_send)
+        await self._send_str(to_send)
         self.endpoint_maps.pop(subscription_id, None)
 
     async def _subscribe_handle(
@@ -133,3 +254,15 @@ class RTA:
         self.subscribe_listeners.pop(data[1], None)
 
         future.set_result(None)
+        self.future_set.discard(future)
+
+    async def close(self) -> None:
+        if self.stream is not None:
+            await self.stream.aclose()
+            self.stream = None
+
+        for future in self.future_set:
+            future.cancel()
+
+        self.tg.cancel_scope.cancel()
+        await self.exit_stack.aclose()
