@@ -4,10 +4,10 @@ import inspect
 import secrets
 import traceback
 import typing
-from concurrent.futures import Future
 from enum import IntEnum
 
 import anyio
+from anyio.streams.stapled import StapledObjectStream
 from anyio.streams.tls import TLSStream
 from websockets.client import ClientProtocol
 from websockets.frames import Frame, Opcode
@@ -62,7 +62,7 @@ class RTA:
         self.subscribe_listeners: dict[
             int, typing.Callable[[list[typing.Any]], typing.Awaitable[typing.Any]]
         ] = {}
-        self.future_set: set[Future] = set()
+        self.stapled_stream_set: set[StapledObjectStream] = set()
 
         self.ping_tasks: dict[bytes, anyio.Event] = {}
 
@@ -218,15 +218,24 @@ class RTA:
         self.last_sequence_number += 1
         to_send = f'[{RTAType.SUBSCRIBE},{self.last_sequence_number},"{url}"]'
 
-        future = Future()
+        stapled_stream = StapledObjectStream(*anyio.create_memory_object_stream())
 
         self.subscribe_listeners[self.last_sequence_number] = functools.partial(
-            self._subscribe_handle, dispatch_handler, future
+            self._subscribe_handle, dispatch_handler, stapled_stream
         )
         await self._send_str(to_send)
 
-        self.future_set.add(future)
-        await anyio.to_thread.run_sync(future.result)
+        self.stapled_stream_set.add(stapled_stream)
+
+        try:
+            data = await stapled_stream.receive()
+        except (anyio.ClosedResourceError, anyio.EndOfStream):
+            return
+
+        self.stapled_stream_set.discard(stapled_stream)
+
+        if isinstance(data, Exception):
+            raise data
 
     async def unsubscribe(self, subscription_id: int) -> None:
         self.last_sequence_number += 1
@@ -241,28 +250,28 @@ class RTA:
         new_dispatch_handle: typing.Callable[
             [list[typing.Any]], typing.Awaitable[typing.Any]
         ],
-        future: Future,
+        stapled_stream: StapledObjectStream,
         data: list[typing.Any],
     ) -> None:
         if len(data) != 5:
             if len(data) == 4:
-                future.set_exception(ValueError(f"Invalid RTA: {data[3]}"))
+                await stapled_stream.send(ValueError(f"Invalid RTA: {data[3]}"))
             else:
-                future.set_exception(ValueError(f"Invalid RTA: {data}"))
+                await stapled_stream.send(ValueError(f"Invalid RTA: {data}"))
+            return
 
         self.endpoint_maps[data[3]] = new_dispatch_handle
         self.subscribe_listeners.pop(data[1], None)
 
-        future.set_result(None)
-        self.future_set.discard(future)
+        await stapled_stream.send(None)
 
     async def close(self) -> None:
         if self.stream is not None:
             await self.stream.aclose()
             self.stream = None
 
-        for future in self.future_set:
-            future.cancel()
+        for stream in self.stapled_stream_set:
+            await stream.aclose()
 
         self.tg.cancel_scope.cancel()
         await self.exit_stack.aclose()
