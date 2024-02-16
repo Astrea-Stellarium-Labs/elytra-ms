@@ -83,7 +83,7 @@ async def async_main() -> None:
 
 
 def main() -> None:
-    anyio.run(async_main())
+    anyio.run(async_main)
 
 
 if __name__ == "__main__":
