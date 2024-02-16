@@ -15,8 +15,7 @@ class HandlerProtocol(typing.Protocol):
         *,
         force_refresh: bool = False,
         **kwargs: typing.Any,
-    ) -> httpx.Response:
-        ...
+    ) -> httpx.Response: ...
 
     async def get(
         self,
@@ -26,8 +25,7 @@ class HandlerProtocol(typing.Protocol):
         params: typing.Optional[dict] = None,
         headers: typing.Optional[dict] = None,
         **kwargs: typing.Any,
-    ) -> httpx.Response:
-        ...
+    ) -> httpx.Response: ...
 
     async def post(
         self,
@@ -37,8 +35,7 @@ class HandlerProtocol(typing.Protocol):
         params: typing.Optional[dict] = None,
         headers: typing.Optional[dict] = None,
         **kwargs: typing.Any,
-    ) -> httpx.Response:
-        ...
+    ) -> httpx.Response: ...
 
     async def put(
         self,
@@ -48,8 +45,7 @@ class HandlerProtocol(typing.Protocol):
         params: typing.Optional[dict] = None,
         headers: typing.Optional[dict] = None,
         **kwargs: typing.Any,
-    ) -> httpx.Response:
-        ...
+    ) -> httpx.Response: ...
 
     async def delete(
         self,
@@ -59,5 +55,4 @@ class HandlerProtocol(typing.Protocol):
         params: typing.Optional[dict] = None,
         headers: typing.Optional[dict] = None,
         **kwargs: typing.Any,
-    ) -> httpx.Response:
-        ...
+    ) -> httpx.Response: ...
