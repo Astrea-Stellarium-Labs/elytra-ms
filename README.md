@@ -6,15 +6,19 @@ A Python Library for various Microsoft APIs, including the Xbox and Bedrock Real
 ## Usage
 
 ```python
-import asyncio
+import anyio  # or asyncio, or trio
 import elytra
 
+
 async def main():
-    xbox_api = await elytra.XboxAPI.from_file("CLIENT_ID", "CLIENT_SECRET", oauth_path="oauth.json")
+    xbox_api = await elytra.XboxAPI.from_file(
+        "CLIENT_ID", "CLIENT_SECRET", oauth_path="oauth.json"
+    )
     print(await xbox_api.fetch_profile_by_gamertag("SomeGamertag"))
     await xbox_api.close()
 
-asyncio.run(main())
+
+anyio.run(main)
 ```
 
 ## Setup
