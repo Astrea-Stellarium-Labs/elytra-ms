@@ -47,24 +47,24 @@ PING_TIMEOUT = 20.0
 
 class RTA:
     def __init__(self, headers: dict | None = None) -> None:
-        self.uri = parse_uri("wss://rta.xboxlive.com/connect")
-        self.headers = headers or {}
-        self.protocol = ClientProtocol(self.uri)
-        self.stream: TLSStream | None = None
+        self._uri = parse_uri("wss://rta.xboxlive.com/connect")
+        self._headers = headers or {}
+        self._protocol = ClientProtocol(self._uri)
+        self._stream: TLSStream | None = None
 
-        self.tg = anyio.create_task_group()
-        self.exit_stack = contextlib.AsyncExitStack()
+        self._tg = anyio.create_task_group()
+        self._exit_stack = contextlib.AsyncExitStack()
 
-        self.last_sequence_number = 0
-        self.endpoint_maps: dict[
+        self._last_sequence_number = 0
+        self._endpoint_maps: dict[
             int, typing.Callable[[list[typing.Any]], typing.Awaitable[typing.Any]]
         ] = {}
-        self.subscribe_listeners: dict[
+        self._subscribe_listeners: dict[
             int, typing.Callable[[list[typing.Any]], typing.Awaitable[typing.Any]]
         ] = {}
-        self.stapled_stream_set: set[StapledObjectStream] = set()
+        self._stapled_stream_set: set[StapledObjectStream] = set()
 
-        self.ping_tasks: dict[bytes, anyio.Event] = {}
+        self._ping_tasks: dict[bytes, anyio.Event] = {}
 
     @classmethod
     async def establish(cls, headers: dict | None = None) -> typing.Self:
@@ -73,60 +73,60 @@ class RTA:
         return self
 
     async def connect(self) -> None:
-        self.stream = await anyio.connect_tcp(
-            self.uri.host, self.uri.port, tls=True, tls_standard_compatible=False
+        self._stream = await anyio.connect_tcp(
+            self._uri.host, self._uri.port, tls=True, tls_standard_compatible=False
         )
 
-        request = self.protocol.connect()
-        request.headers.update(self.headers)
-        self.protocol.send_request(request)
+        request = self._protocol.connect()
+        request.headers.update(self._headers)
+        self._protocol.send_request(request)
 
-        for data in self.protocol.data_to_send():
-            await self.stream.send(data)
+        for data in self._protocol.data_to_send():
+            await self._stream.send(data)
 
         try:
-            data = await self.stream.receive()
+            data = await self._stream.receive()
         except anyio.EndOfStream:
-            self.protocol.receive_eof()
-            for data in self.protocol.data_to_send():
-                await self.stream.send(data)
+            self._protocol.receive_eof()
+            for data in self._protocol.data_to_send():
+                await self._stream.send(data)
 
             raise ConnectionError("Connection closed.") from None
 
-        self.protocol.receive_data(data)
+        self._protocol.receive_data(data)
 
-        if self.protocol.handshake_exc is not None:
-            raise self.protocol.handshake_exc
+        if self._protocol.handshake_exc is not None:
+            raise self._protocol.handshake_exc
 
-        await self.exit_stack.enter_async_context(self.tg)
-        self.tg.start_soon(self._receive)
-        self.tg.start_soon(self._send_ping)
+        await self._exit_stack.enter_async_context(self._tg)
+        self._tg.start_soon(self._receive)
+        self._tg.start_soon(self._send_ping)
 
     async def _receive(self) -> None:
-        if not self.stream:
+        if not self._stream:
             raise ConnectionError("Stream hasn't been started yet.")
 
         try:
             while True:
                 try:
-                    data = await self.stream.receive()
+                    data = await self._stream.receive()
                 except anyio.EndOfStream:
-                    self.protocol.receive_eof()
-                    for data in self.protocol.data_to_send():
-                        await self.stream.send(data)
+                    self._protocol.receive_eof()
+                    for data in self._protocol.data_to_send():
+                        await self._stream.send(data)
 
                     await self.close()
                     raise ConnectionError("Received EOF.") from None
                 except anyio.ClosedResourceError:
                     return
 
-                self.protocol.receive_data(data)
+                self._protocol.receive_data(data)
 
-                if self.protocol.handshake_exc is not None:
+                if self._protocol.handshake_exc is not None:
                     await self.close()
-                    raise self.protocol.handshake_exc
+                    raise self._protocol.handshake_exc
 
-                events = self.protocol.events_received()
+                events = self._protocol.events_received()
 
                 for event in events:
                     if isinstance(event, Frame):
@@ -135,15 +135,15 @@ class RTA:
                             return
 
                         if event.opcode == Opcode.PING:
-                            self.protocol.send_pong(event.data)
-                            for data in self.protocol.data_to_send():
-                                await self.stream.send(data)
+                            self._protocol.send_pong(event.data)
+                            for data in self._protocol.data_to_send():
+                                await self._stream.send(data)
 
                         elif (
                             event.opcode == Opcode.PONG
-                            and bytes(event.data) in self.ping_tasks
+                            and bytes(event.data) in self._ping_tasks
                         ):
-                            self.ping_tasks[bytes(event.data)].set()
+                            self._ping_tasks[bytes(event.data)].set()
 
                         elif event.opcode in {Opcode.BINARY, Opcode.TEXT}:
                             await self._handle_data(event.data)
@@ -156,7 +156,7 @@ class RTA:
             raise e
 
     async def _send_ping(self) -> None:
-        if not self.stream:
+        if not self._stream:
             raise ConnectionError("Stream hasn't been started yet.")
 
         try:
@@ -164,15 +164,15 @@ class RTA:
                 await anyio.sleep(PING_INTERVAL)
 
                 ping_id = _generate_id()
-                self.ping_tasks[ping_id] = anyio.Event()
+                self._ping_tasks[ping_id] = anyio.Event()
 
-                self.protocol.send_ping(ping_id)
-                for data in self.protocol.data_to_send():
-                    await self.stream.send(data)
+                self._protocol.send_ping(ping_id)
+                for data in self._protocol.data_to_send():
+                    await self._stream.send(data)
 
                 async with anyio.fail_after(PING_TIMEOUT):
-                    await self.ping_tasks[ping_id].wait()
-                    self.ping_tasks.pop(ping_id)
+                    await self._ping_tasks[ping_id].wait()
+                    self._ping_tasks.pop(ping_id)
 
         except TimeoutError:
             print("Ping timeout.")  # noqa: T201
@@ -186,23 +186,23 @@ class RTA:
             raise e
 
     async def _send_str(self, data: str) -> None:
-        if not self.stream:
+        if not self._stream:
             raise ConnectionError("Connection closed.")
 
-        self.protocol.send_text(data.encode())
-        for data_to_send in self.protocol.data_to_send():
-            await self.stream.send(data_to_send)
+        self._protocol.send_text(data.encode())
+        for data_to_send in self._protocol.data_to_send():
+            await self._stream.send(data_to_send)
 
     async def _handle_data(self, data: bytes) -> None:
-        if not self.stream:
+        if not self._stream:
             raise ConnectionError("Connection closed.")
 
         parsed_data: list[typing.Any] = _loads_wrapper(data)
 
         if parsed_data[0] == RTAType.SUBSCRIBE:
-            await self.subscribe_listeners[parsed_data[1]](parsed_data)
+            await self._subscribe_listeners[parsed_data[1]](parsed_data)
         elif parsed_data[0] == RTAType.EVENT:
-            self.tg.start_soon(self.endpoint_maps[parsed_data[1]], parsed_data)
+            self._tg.start_soon(self._endpoint_maps[parsed_data[1]], parsed_data)
 
     async def subscribe(
         self,
@@ -215,35 +215,35 @@ class RTA:
             raise ValueError("dispatch_handler must be a coroutine function.")
 
         url = url.removesuffix("/")
-        self.last_sequence_number += 1
-        to_send = f'[{RTAType.SUBSCRIBE},{self.last_sequence_number},"{url}"]'
+        self._last_sequence_number += 1
+        to_send = f'[{RTAType.SUBSCRIBE},{self._last_sequence_number},"{url}"]'
 
         stapled_stream = StapledObjectStream(*anyio.create_memory_object_stream())
 
-        self.subscribe_listeners[self.last_sequence_number] = functools.partial(
+        self._subscribe_listeners[self._last_sequence_number] = functools.partial(
             self._subscribe_handle, dispatch_handler, stapled_stream
         )
         await self._send_str(to_send)
 
-        self.stapled_stream_set.add(stapled_stream)
+        self._stapled_stream_set.add(stapled_stream)
 
         try:
             data = await stapled_stream.receive()
         except (anyio.ClosedResourceError, anyio.EndOfStream):
             return
 
-        self.stapled_stream_set.discard(stapled_stream)
+        self._stapled_stream_set.discard(stapled_stream)
 
         if isinstance(data, Exception):
             raise data
 
     async def unsubscribe(self, subscription_id: int) -> None:
-        self.last_sequence_number += 1
+        self._last_sequence_number += 1
         to_send = (
-            f"[{RTAType.UNSUBSCRIBE},{self.last_sequence_number}, {subscription_id}]"
+            f"[{RTAType.UNSUBSCRIBE},{self._last_sequence_number}, {subscription_id}]"
         )
         await self._send_str(to_send)
-        self.endpoint_maps.pop(subscription_id, None)
+        self._endpoint_maps.pop(subscription_id, None)
 
     async def _subscribe_handle(
         self,
@@ -260,18 +260,18 @@ class RTA:
                 await stapled_stream.send(ValueError(f"Invalid RTA: {data}"))
             return
 
-        self.endpoint_maps[data[3]] = new_dispatch_handle
-        self.subscribe_listeners.pop(data[1], None)
+        self._endpoint_maps[data[3]] = new_dispatch_handle
+        self._subscribe_listeners.pop(data[1], None)
 
         await stapled_stream.send(None)
 
     async def close(self) -> None:
-        if self.stream is not None:
-            await self.stream.aclose()
-            self.stream = None
+        if self._stream is not None:
+            await self._stream.aclose()
+            self._stream = None
 
-        for stream in self.stapled_stream_set:
+        for stream in self._stapled_stream_set:
             await stream.aclose()
 
-        self.tg.cancel_scope.cancel()
-        await self.exit_stack.aclose()
+        self._tg.cancel_scope.cancel()
+        await self._exit_stack.aclose()
