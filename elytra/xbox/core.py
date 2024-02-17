@@ -7,7 +7,7 @@ from .profile import ProfileHandler
 from .rta import RTA
 from .social import SocialHandler
 
-__all__ = ("XboxAPI",)
+__all__ = ("XboxAPI", "RTA")
 
 
 class XboxAPI(
