@@ -194,7 +194,7 @@ class RTA:
                 for data in self._protocol.data_to_send():
                     await self._stream.send(data)
 
-                async with anyio.fail_after(PING_TIMEOUT):
+                with anyio.fail_after(PING_TIMEOUT):
                     await self._ping_tasks[ping_id].wait()
                     self._ping_tasks.pop(ping_id)
 

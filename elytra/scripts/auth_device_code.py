@@ -70,7 +70,7 @@ async def async_main() -> None:
     print(data["message"])  # noqa: T201
 
     try:
-        async with anyio.fail_after(data["expires_in"]):
+        with anyio.fail_after(data["expires_in"]):
             while True:
                 await anyio.sleep(data["interval"])
                 r = await session.post(
