@@ -286,6 +286,13 @@ class RetryTransport(httpx.AsyncBaseTransport, httpx.BaseTransport):
             try:
                 response = await send_method(request)
                 response.request = request
+
+                if (
+                    request.extensions.get("dont_handle_ratelimit", False)
+                    and response.status_code == 429
+                ):
+                    return response
+
                 if remaining_attempts < 1 or not (
                     await self._should_retry_async(response)
                 ):
@@ -320,6 +327,13 @@ class RetryTransport(httpx.AsyncBaseTransport, httpx.BaseTransport):
             try:
                 response = send_method(request)
                 response.request = request
+
+                if (
+                    request.extensions.get("dont_handle_ratelimit", False)
+                    and response.status_code == 429
+                ):
+                    return response
+
                 if remaining_attempts < 1 or not self._should_retry(response):
                     return response
                 response.close()

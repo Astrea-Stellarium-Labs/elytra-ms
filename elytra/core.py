@@ -471,6 +471,7 @@ class BaseMicrosoftAPI(HandlerProtocol):
         headers: typing.Optional[dict] = None,
         *,
         force_refresh: bool = False,
+        dont_handle_ratelimit: bool = False,
         **kwargs: typing.Any,
     ) -> httpx.Response:
         if not headers:
@@ -495,6 +496,9 @@ class BaseMicrosoftAPI(HandlerProtocol):
             "data": data,
             "params": params,
         } | kwargs
+
+        if dont_handle_ratelimit:
+            req_kwargs["extensions"] = {"dont_handle_ratelimit": True}
 
         resp = await self.session.request(**req_kwargs)
 
