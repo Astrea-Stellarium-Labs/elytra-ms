@@ -252,7 +252,7 @@ class RetryTransport(httpx.AsyncBaseTransport, httpx.BaseTransport):
                 ).astimezone()  # converts to local time
                 diff = (parsed_date - datetime.now().astimezone()).total_seconds()
                 if diff > 0:
-                    return min(diff, self._max_backoff_wait)
+                    return diff
 
         backoff = self._backoff_factor * (2 ** (attempts_made - 1))
         jitter = (backoff * self._jitter_ratio) * random.choice([1, -1])  # noqa: S311
