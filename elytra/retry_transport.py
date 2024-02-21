@@ -22,6 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+import contextlib
 import random
 import time
 from collections.abc import Callable, Coroutine, Iterable, Mapping
@@ -160,12 +161,11 @@ class RetryTransport(httpx.AsyncBaseTransport, httpx.BaseTransport):
 
         """
         transport: httpx.BaseTransport = self._wrapped_transport  # type: ignore
-        if request.method in self._retryable_methods:
-            send_method = partial(transport.handle_request)
-            response = self._retry_operation(request, send_method)
-        else:
-            response = transport.handle_request(request)
-        return response
+        if not self._is_retryable_method(request):
+            return transport.handle_request(request)
+
+        send_method = partial(transport.handle_request)
+        return self._retry_operation(request, send_method)
 
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
         """Sends an HTTP request, possibly with retries.
@@ -178,12 +178,11 @@ class RetryTransport(httpx.AsyncBaseTransport, httpx.BaseTransport):
 
         """
         transport: httpx.AsyncBaseTransport = self._wrapped_transport  # type: ignore
-        if self._is_retryable_method(request):
-            send_method = partial(transport.handle_async_request)
-            response = await self._retry_operation_async(request, send_method)
-        else:
-            response = await transport.handle_async_request(request)
-        return response
+        if not self._is_retryable_method(request):
+            return await transport.handle_async_request(request)
+
+        send_method = partial(transport.handle_async_request)
+        return await self._retry_operation_async(request, send_method)
 
     async def aclose(self) -> None:
         """
@@ -230,9 +229,6 @@ class RetryTransport(httpx.AsyncBaseTransport, httpx.BaseTransport):
                 f" retrying in {sleep_time} seconds."
             )
 
-    async def _should_retry_async(self, response: httpx.Response) -> bool:
-        return response.status_code in self._retry_status_codes
-
     def _calculate_sleep(
         self, attempts_made: int, headers: Union[httpx.Headers, Mapping[str, str]]
     ) -> float:
@@ -250,15 +246,13 @@ class RetryTransport(httpx.AsyncBaseTransport, httpx.BaseTransport):
             if retry_after_header.isdigit():
                 return float(retry_after_header)
 
-            try:
+            with contextlib.suppress(ValueError):
                 parsed_date = isoparse(
                     retry_after_header
                 ).astimezone()  # converts to local time
                 diff = (parsed_date - datetime.now().astimezone()).total_seconds()
                 if diff > 0:
                     return min(diff, self._max_backoff_wait)
-            except ValueError:
-                pass
 
         backoff = self._backoff_factor * (2 ** (attempts_made - 1))
         jitter = (backoff * self._jitter_ratio) * random.choice([1, -1])  # noqa: S311
@@ -295,9 +289,7 @@ class RetryTransport(httpx.AsyncBaseTransport, httpx.BaseTransport):
                 ):
                     return response
 
-                if remaining_attempts < 1 or not (
-                    await self._should_retry_async(response)
-                ):
+                if remaining_attempts < 1 or not (self._should_retry(response)):
                     return response
                 await response.aclose()
             except httpx.HTTPError as e:
