@@ -23,7 +23,7 @@ classifiers = [
 dynamic = ["version", "dependencies"]
 
 [project.urls]
-Homepage = "https://github.com/AstreaTSS/elytra-ms"
+Homepage = "https://github.com/Astrea-Stellarium-Labs/elytra-ms"
 
 [tool.hatch.version]
 path = "elytra/__init__.py"
