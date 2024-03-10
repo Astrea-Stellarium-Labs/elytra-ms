@@ -15,4 +15,4 @@ from .core import *
 from .protocols import *
 from .xbox import *
 
-__version__ = "0.3.2"
+__version__ = "0.3.3"
