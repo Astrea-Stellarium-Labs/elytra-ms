@@ -414,7 +414,9 @@ class BaseMicrosoftAPI(HandlerProtocol):
             wrapped_transport=httpx.AsyncHTTPTransport(http2=True, retries=2),
             jitter_ratio=0.3,
         )
-        session = httpx.AsyncClient(transport=transport)
+        session = httpx.AsyncClient(
+            transport=transport, http2=True, timeout=httpx.Timeout(5.0, read=None)
+        )
         auth_mgr = await AuthenticationManager.from_ouath(
             session, client_id, client_secret, cls.RELYING_PATH, oauth
         )
@@ -430,7 +432,9 @@ class BaseMicrosoftAPI(HandlerProtocol):
             wrapped_transport=httpx.AsyncHTTPTransport(http2=True, retries=2),
             jitter_ratio=0.3,
         )
-        session = httpx.AsyncClient(transport=transport)
+        session = httpx.AsyncClient(
+            transport=transport, http2=True, timeout=httpx.Timeout(5.0, read=None)
+        )
         auth_mgr = await AuthenticationManager.from_data(
             session, client_id, client_secret, cls.RELYING_PATH, oauth_data
         )
@@ -446,7 +450,9 @@ class BaseMicrosoftAPI(HandlerProtocol):
             wrapped_transport=httpx.AsyncHTTPTransport(http2=True, retries=2),
             jitter_ratio=0.3,
         )
-        session = httpx.AsyncClient(transport=transport)
+        session = httpx.AsyncClient(
+            transport=transport, http2=True, timeout=httpx.Timeout(5.0, read=None)
+        )
         auth_mgr = await AuthenticationManager.from_file(
             session, client_id, client_secret, cls.RELYING_PATH, oauth_path
         )
