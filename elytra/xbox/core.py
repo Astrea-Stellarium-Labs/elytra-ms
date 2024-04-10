@@ -26,6 +26,7 @@ from elytra import BaseMicrosoftAPI
 from elytra.const import XBOX_API_RELYING_PARTY
 
 from .club import ClubHandler
+from .message import MessageHandler
 from .peoplehub import PeopleHubHandler
 from .profile import ProfileHandler
 from .rta import RTA
@@ -40,6 +41,7 @@ class XboxAPI(
     PeopleHubHandler,
     ClubHandler,
     SocialHandler,
+    MessageHandler,
 ):
     RELYING_PARTY: str = XBOX_API_RELYING_PARTY
 

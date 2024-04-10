@@ -24,6 +24,7 @@ SOFTWARE.
 
 from .club import *
 from .core import *
+from .message import *
 from .peoplehub import *
 from .profile import *
 from .social import *
