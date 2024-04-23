@@ -94,7 +94,8 @@ class Conversation(CamelBaseModel):
     last_message: Message
 
 
-class Folder(CamelBaseModel):
+@add_decoder
+class Folder(ParsableCamelModel):
     folder: str
     total_count: int
     unread_count: int

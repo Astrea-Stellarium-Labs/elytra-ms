@@ -58,6 +58,21 @@ class MessageHandler(HandlerProtocol):
             )
         )
 
+    async def fetch_folder(
+        self, folder: str = "Primary", max_items: int = 100, **kwargs: typing.Any
+    ) -> Folder:
+        URL = f"https://xblmessaging.xboxlive.com/network/Xbox/users/me/inbox/{folder}"
+        HEADERS = {"x-xbl-contract-version": "1"}
+
+        return await Folder.from_response(
+            await self.get(
+                URL,
+                headers=HEADERS,
+                params={"maxItems": max_items},
+                **kwargs,
+            )
+        )
+
     async def fetch_conversation(
         self, xuid: str | int, max_items: int = 100, **kwargs: typing.Any
     ) -> ConversationResponse:
