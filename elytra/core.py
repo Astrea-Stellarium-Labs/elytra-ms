@@ -478,6 +478,7 @@ class BaseMicrosoftAPI(HandlerProtocol):
         *,
         force_refresh: bool = False,
         dont_handle_ratelimit: bool = False,
+        use_url_as_is: bool = False,
         **kwargs: typing.Any,
     ) -> httpx.Response:
         if not headers:
@@ -495,9 +496,12 @@ class BaseMicrosoftAPI(HandlerProtocol):
             kwargs["content"] = _dumps_wrapper(json)
             headers["Content-Type"] = "application/json"
 
+        if not use_url_as_is:
+            url = f"{self.BASE_URL}{url}"
+
         req_kwargs = {
             "method": method,
-            "url": f"{self.BASE_URL}{url}",
+            "url": url,
             "headers": headers | self.base_headers,
             "data": data,
             "params": params,

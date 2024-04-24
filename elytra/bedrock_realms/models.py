@@ -36,6 +36,7 @@ __all__ = (
     "State",
     "WorldType",
     "FullRealm",
+    "IndividualRealm",
     "MultiRealmResponse",
     "Player",
     "PartialRealm",
@@ -43,6 +44,10 @@ __all__ = (
     "PendingInvite",
     "PendingInviteResponse",
     "RealmCountResponse",
+    "RealmStoryPlayerActivityEntry",
+    "RealmStoryPlayerActivity",
+    "RealmStoryPlayerActivityResponse",
+    "RealmStorySettings",
 )
 
 
@@ -71,9 +76,20 @@ class Player(CamelBaseModel):
 
 
 @add_decoder
+class RealmStorySettings(ParsableCamelModel):
+    autostories: bool
+    coordinates: bool
+    in_game_chat_messages: bool
+    notifications: bool
+    player_opt_in: str
+    realm_opt_in: str
+    storage_shard: int
+    timeline: bool
+
+
+@add_decoder
 class FullRealm(ParsableCamelModel):
     id: int
-    remote_subscription_id: str
     owner: typing.Optional[str]
     name: str
     default_permission: Permission
@@ -95,6 +111,22 @@ class FullRealm(ParsableCamelModel):
     players: typing.Optional[list[Player]] = None
     club_id: typing.Optional[int] = None
     motd: typing.Optional[str] = None
+
+
+@add_decoder
+class IndividualRealm(ParsableCamelModel):
+    id: int
+    name: str
+    state: State
+    max_players: int
+    active_slot: int
+    member: bool
+    is_hardcore: bool
+    owner_uuid: str = msgspec.field(name="ownerUUID")
+    players: typing.Optional[list[Player]] = None
+    club_id: typing.Optional[int] = None
+    motd: typing.Optional[str] = None
+    stories_settings: typing.Optional[RealmStorySettings] = None
 
 
 @add_decoder
@@ -136,3 +168,29 @@ class RealmCountResponse(ParsableCamelModel):
     realm_count: int = msgspec.field(name="memberCount")
     realm_limit: int = msgspec.field(name="memberLimit")
     over_limit: bool
+
+
+class RealmStoryPlayerActivityEntry(CamelBaseModel):
+    start_timestamp: int = msgspec.field(name="s")
+    end_timestamp: int = msgspec.field(name="e")
+
+    @property
+    def start(self) -> datetime.datetime:
+        return datetime.datetime.fromtimestamp(self.start_timestamp, tz=datetime.UTC)
+
+    @property
+    def end(self) -> datetime.datetime:
+        return datetime.datetime.fromtimestamp(self.end_timestamp, tz=datetime.UTC)
+
+
+class RealmStoryPlayerActivity(CamelBaseModel):
+    activity: dict[str, list[RealmStoryPlayerActivityEntry]]
+
+
+@add_decoder
+class RealmStoryPlayerActivityResponse(ParsableCamelModel):
+    result: RealmStoryPlayerActivity
+
+    @property
+    def activity(self) -> dict[str, list[RealmStoryPlayerActivityEntry]]:
+        return self.result.activity

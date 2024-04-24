@@ -22,24 +22,31 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+import typing
+
 from elytra.const import BEDROCK_REALMS_API_URL, MC_VERSION
 from elytra.core import BaseMicrosoftAPI
 
 from .models import *
 
 __all__ = (
+    "BedrockRealmsAPI",
     "Permission",
     "State",
     "WorldType",
     "FullRealm",
+    "IndividualRealm",
     "MultiRealmResponse",
     "Player",
     "PartialRealm",
     "ActivityListResponse",
-    "RealmCountResponse",
     "PendingInvite",
     "PendingInviteResponse",
-    "BedrockRealmsAPI",
+    "RealmCountResponse",
+    "RealmStoryPlayerActivityEntry",
+    "RealmStoryPlayerActivity",
+    "RealmStoryPlayerActivityResponse",
+    "RealmStorySettings",
 )
 
 
@@ -62,6 +69,9 @@ class BedrockRealmsAPI(BaseMicrosoftAPI):
 
     async def fetch_realms(self) -> MultiRealmResponse:
         return await MultiRealmResponse.from_response(await self.get("worlds"))
+
+    async def fetch_realm(self, realm_id: int | str) -> IndividualRealm:
+        return await IndividualRealm.from_response(await self.get(f"worlds/{realm_id}"))
 
     async def invite_player(
         self, realm_id: str | int, player_xuid: str | int
@@ -99,4 +109,47 @@ class BedrockRealmsAPI(BaseMicrosoftAPI):
     async def fetch_realm_count(self) -> RealmCountResponse:
         return await RealmCountResponse.from_response(
             await self.get("clubs/membercount")
+        )
+
+    async def fetch_realm_story_settings(
+        self, realm_id: str | int
+    ) -> RealmStorySettings:
+        return await RealmStorySettings.from_response(
+            await self.get(f"worlds/{realm_id}/stories/settings")
+        )
+
+    async def update_realm_story_settings(
+        self,
+        realm_id: str | int,
+        *,
+        autostories: bool | None = None,
+        coordinates: bool | None = None,
+        notifications: bool | None = None,
+        player_opt_in: typing.Literal["OPT_IN", "OPT_OUT", "NONE"] | None = None,
+        realm_opt_in: typing.Literal["OPT_IN", "OPT_OUT", "NONE"] | None = None,
+        timeline: bool | None = None,
+    ) -> None:
+        data = {
+            "autostories": autostories,
+            "coordinates": coordinates,
+            "notifications": notifications,
+            "playerOptIn": player_opt_in,
+            "realmOptIn": realm_opt_in,
+            "timeline": timeline,
+        }
+        data = {k: v for k, v in data.items() if v is not None}
+
+        await self.post(
+            f"worlds/{realm_id}/stories/settings",
+            json=data,
+        )
+
+    async def fetch_realm_story_player_activity(
+        self, realm_id: str | int
+    ) -> RealmStoryPlayerActivityResponse:
+        return await RealmStoryPlayerActivityResponse.from_response(
+            await self.get(
+                f"https://frontend.realms.minecraft-services.net/api/v1.0/worlds/{realm_id}/stories/playeractivity",
+                use_url_as_is=True,
+            )
         )
