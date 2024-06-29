@@ -462,7 +462,10 @@ class BaseMicrosoftAPI(HandlerProtocol):
 
     @property
     def base_headers(self) -> dict[str, str]:
-        return {"Authorization": self.auth_mgr.xsts_token.authorization_header_value}
+        return {
+            "Authorization": self.auth_mgr.xsts_token.authorization_header_value,
+            "Cache-Control": "no-cache, no-store",
+        }
 
     async def close(self) -> None:
         await self.session.aclose()

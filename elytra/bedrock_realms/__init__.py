@@ -60,6 +60,7 @@ class BedrockRealmsAPI(BaseMicrosoftAPI):
             "Authorization": self.auth_mgr.xsts_token.authorization_header_value,
             "Client-Version": MC_VERSION,
             "User-Agent": "MCPE/UWP",
+            "Cache-Control": "no-cache, no-store",
         }
 
     async def join_realm_from_code(self, code: str) -> FullRealm:
