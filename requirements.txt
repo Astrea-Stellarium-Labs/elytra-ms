@@ -1,4 +1,5 @@
 httpx[http2]
+anyio>=4,<5
 websockets
 python-dateutil
 typing_extensions
