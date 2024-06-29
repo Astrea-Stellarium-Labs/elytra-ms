@@ -23,6 +23,9 @@ SOFTWARE.
 """
 
 import typing
+from uuid import UUID
+
+import httpx
 
 from elytra.protocols import HandlerProtocol
 
@@ -86,4 +89,46 @@ class MessageHandler(HandlerProtocol):
                 params={"maxItems": max_items},
                 **kwargs,
             )
+        )
+
+    async def _update_conversation(
+        self, payload: dict, **kwargs: typing.Any
+    ) -> httpx.Response:
+        HEADERS = {"x-xbl-contract-version": "2"}
+        return await self.put(
+            "https://xblmessaging.xboxlive.com/network/Xbox/users/me/conversations/horizon",
+            json=payload,
+            headers=HEADERS,
+            **kwargs,
+        )
+
+    async def delete_conversation(
+        self, conversation_id: str | UUID, horizon: str | int, **kwargs: typing.Any
+    ) -> None:
+        HEADERS = {"x-xbl-contract-version": "2"}
+        payload = {
+            "conversations": [
+                {
+                    "conversationId": str(conversation_id),
+                    "conversationType": "OneToOne",
+                    "horizonType": "Delete",
+                    "horizon": str(horizon),
+                }
+            ]
+        }
+        await self.put(
+            "https://xblmessaging.xboxlive.com/network/Xbox/users/me/conversations/horizon",
+            json=payload,
+            headers=HEADERS,
+            **kwargs,
+        )
+
+    async def delete_folder_conversations(
+        self, folder: str = "Primary", **kwargs: typing.Any
+    ) -> None:
+        HEADERS = {"x-xbl-contract-version": "2"}
+        await self.delete(
+            f"https://xblmessaging.xboxlive.com/network/xbox/users/me/conversations/horizon/{folder}",
+            headers=HEADERS,
+            **kwargs,
         )
