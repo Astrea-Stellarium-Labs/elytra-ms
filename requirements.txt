@@ -3,3 +3,4 @@ websockets
 python-dateutil
 typing_extensions
 msgspec
+exceptiongroup

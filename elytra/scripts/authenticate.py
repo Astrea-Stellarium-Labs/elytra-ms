@@ -23,7 +23,6 @@ SOFTWARE.
 """
 
 import argparse
-import contextlib
 import os
 from email.utils import formatdate
 from urllib.parse import parse_qsl, urlencode
@@ -32,6 +31,7 @@ import anyio
 import httpx
 import msgspec
 from anyio.abc import SocketStream
+from exceptiongroup import catch
 
 from elytra import AuthenticationManager
 
@@ -150,7 +150,7 @@ async def async_main() -> None:
 
     listener = await anyio.create_tcp_listener(local_host="localhost", local_port=8080)
 
-    with contextlib.suppress(anyio.EndOfStream):
+    with catch({anyio.EndOfStream: lambda x: x}):
         await listener.serve(handle_microsoft)
 
     if not code:
