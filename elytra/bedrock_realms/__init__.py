@@ -67,6 +67,9 @@ class BedrockRealmsAPI(BaseMicrosoftAPI):
             await self.post(f"invites/v1/link/accept/{code}")
         )
 
+    async def fetch_realm_from_code(self, code: str) -> FullRealm:
+        return await FullRealm.from_response(await self.get(f"worlds/v1/link/{code}"))
+
     async def fetch_realms(self) -> MultiRealmResponse:
         return await MultiRealmResponse.from_response(await self.get("worlds"))
 
