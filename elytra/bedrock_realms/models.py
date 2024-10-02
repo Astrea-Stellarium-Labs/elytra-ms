@@ -104,9 +104,9 @@ class FullRealm(ParsableCamelModel):
     minigame_id: NoneType
     minigame_image: NoneType
     active_slot: int
-    member: bool
     subscription_refresh_status: NoneType
     owner_uuid: str = msgspec.field(name="ownerUUID")
+    member: bool = False
     slots: typing.Optional[typing.Any] = None
     players: typing.Optional[list[Player]] = None
     club_id: typing.Optional[int] = None
@@ -120,9 +120,9 @@ class IndividualRealm(ParsableCamelModel):
     state: State
     max_players: int
     active_slot: int
-    member: bool
-    is_hardcore: bool
     owner_uuid: str = msgspec.field(name="ownerUUID")
+    member: bool = False
+    is_hardcore: bool = False
     players: typing.Optional[list[Player]] = None
     club_id: typing.Optional[int] = None
     motd: typing.Optional[str] = None
