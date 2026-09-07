@@ -1,7 +1,7 @@
 """
 MIT License
 
-Copyright (c) 2023-2024 AstreaTSS
+Copyright (c) 2023-2026 AstreaTSS
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -44,11 +44,11 @@ __all__ = (
 class MessageContentPart(CamelBaseModel):
     content_type: str
     version: int
-    app_uri: typing.Optional[str] = None
-    text: typing.Optional[str] = None
-    unsuitable_for: typing.Optional[list[typing.Any]] = None
-    button_text: typing.Optional[str] = None
-    web_uri: typing.Optional[str] = None
+    app_uri: str | None = None
+    text: str | None = None
+    unsuitable_for: list[typing.Any] | None = None
+    button_text: str | None = None
+    web_uri: str | None = None
 
 
 class MessageContent(CamelBaseModel):
@@ -75,8 +75,8 @@ class Message(CamelBaseModel):
     clock: str
     is_deleted: bool
     is_server_updated: bool
-    owner: typing.Optional[int] = None
-    content_payload: typing.Optional[MessageContentPayload] = None
+    owner: int | None = None
+    content_payload: MessageContentPayload | None = None
 
 
 class Conversation(CamelBaseModel):
@@ -99,7 +99,7 @@ class Folder(ParsableCamelModel):
     folder: str
     total_count: int
     unread_count: int
-    conversations: typing.Optional[list[Conversation]] = None
+    conversations: list[Conversation] | None = None
 
 
 @add_decoder
@@ -116,10 +116,10 @@ class ConversationResponse(ParsableCamelModel):
     direct_mention_horizon: str
     muted: bool
     voice_id: UUID
-    continuation_token: typing.Optional[str] = None
-    voice_roster: typing.Optional[list[typing.Any]] = None
-    messages: typing.Optional[list[Message]] = None
-    participants: typing.Optional[list[str]] = None
+    continuation_token: str | None = None
+    voice_roster: list[typing.Any] | None = None
+    messages: list[Message] | None = None
+    participants: list[str] | None = None
 
 
 class SafetySettings(CamelBaseModel):
