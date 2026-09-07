@@ -1,7 +1,7 @@
 """
 MIT License
 
-Copyright (c) 2023-2024 AstreaTSS
+Copyright (c) 2023-2026 AstreaTSS
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -56,17 +56,17 @@ class PeopleSummaryResponse(CamelBaseModel):
     has_caller_marked_target_as_favorite: bool
     has_caller_marked_target_as_identity_shared: bool
     legacy_friend_status: str
-    available_people_slots: typing.Optional[int] = None
-    recent_change_count: typing.Optional[int] = None
-    watermark: typing.Optional[str] = None
+    available_people_slots: int | None = None
+    recent_change_count: int | None = None
+    watermark: str | None = None
 
 
 # microsoft is a great and consistent company
 class Suggestion(PascalBaseModel):
     priority: int
-    type: typing.Optional[str] = None
-    reasons: typing.Optional[str] = None
-    title_id: typing.Optional[str] = None
+    type: str | None = None
+    reasons: str | None = None
+    title_id: str | None = None
 
 
 class Recommendation(PascalBaseModel):
@@ -81,18 +81,18 @@ class MultiplayerSummary(PascalBaseModel):
 
 class RecentPlayer(CamelBaseModel):
     titles: list[str]
-    text: typing.Optional[str] = None
+    text: str | None = None
 
 
 class Follower(CamelBaseModel):
-    text: typing.Optional[str] = None
-    followed_date_time: typing.Optional[datetime] = None
+    text: str | None = None
+    followed_date_time: datetime | None = None
 
 
 class PreferredColor(CamelBaseModel):
-    primary_color: typing.Optional[str] = None
-    secondary_color: typing.Optional[str] = None
-    tertiary_color: typing.Optional[str] = None
+    primary_color: str | None = None
+    secondary_color: str | None = None
+    tertiary_color: str | None = None
 
 
 class PresenceDetail(PascalBaseModel):
@@ -103,15 +103,15 @@ class PresenceDetail(PascalBaseModel):
     title_id: str
     is_primary: bool
     is_game: bool
-    title_type: typing.Optional[str] = None
-    rich_presence_text: typing.Optional[str] = None
+    title_type: str | None = None
+    rich_presence_text: str | None = None
 
 
 class TitlePresence(PascalBaseModel):
     is_currently_playing: bool
-    presence_text: typing.Optional[str] = None
-    title_name: typing.Optional[str] = None
-    title_id: typing.Optional[str] = None
+    presence_text: str | None = None
+    title_name: str | None = None
+    title_id: str | None = None
 
 
 class Detail(CamelBaseModel):
@@ -123,9 +123,9 @@ class Detail(CamelBaseModel):
     follower_count: int
     following_count: int
     has_game_pass: bool
-    bio: typing.Optional[str] = None
-    location: typing.Optional[str] = None
-    tenure: typing.Optional[str] = None
+    bio: str | None = None
+    location: str | None = None
+    tenure: str | None = None
 
 
 class SocialManager(CamelBaseModel):
@@ -134,16 +134,16 @@ class SocialManager(CamelBaseModel):
 
 
 class Avatar(CamelBaseModel):
-    update_time_offset: typing.Optional[datetime] = None
-    spritesheet_metadata: typing.Optional[typing.Any] = None
+    update_time_offset: datetime | None = None
+    spritesheet_metadata: typing.Any | None = None
 
 
 class LinkedAccount(CamelBaseModel):
     network_name: str
     show_on_profile: bool
     is_family_friendly: bool
-    display_name: typing.Optional[str] = None
-    deeplink: typing.Optional[str] = None
+    display_name: str | None = None
+    deeplink: str | None = None
 
 
 class Person(CamelBaseModel):
@@ -169,30 +169,30 @@ class Person(CamelBaseModel):
     preferred_platforms: list[str]
     is_quarantined: bool
     is_xbox360_gamerpic: bool
-    presence_devices: typing.Optional[typing.Any] = None
-    is_cloaked: typing.Optional[bool] = None
-    added_date_time_utc: typing.Optional[datetime] = None
-    display_name: typing.Optional[str] = None
-    suggestion: typing.Optional[Suggestion] = None
-    recommendation: typing.Optional[Recommendation] = None
-    search: typing.Optional[typing.Any] = None
-    title_history: typing.Optional[typing.Any] = None
-    multiplayer_summary: typing.Optional[MultiplayerSummary] = None
-    recent_player: typing.Optional[RecentPlayer] = None
-    follower: typing.Optional[Follower] = None
-    preferred_color: typing.Optional[PreferredColor] = None
-    presence_details: typing.Optional[list[PresenceDetail]] = None
-    title_presence: typing.Optional[TitlePresence] = None
-    title_summaries: typing.Optional[typing.Any] = None
-    presence_title_ids: typing.Optional[list[str]] = None
-    detail: typing.Optional[Detail] = None
-    community_manager_titles: typing.Optional[typing.Any] = None
-    social_manager: typing.Optional[SocialManager] = None
-    broadcast: typing.Optional[list[typing.Any]] = None
-    tournament_summary: typing.Optional[typing.Any] = None
-    avatar: typing.Optional[Avatar] = None
-    linked_accounts: typing.Optional[list[LinkedAccount]] = None
-    last_seen_date_time_utc: typing.Optional[datetime] = None
+    presence_devices: typing.Any | None = None
+    is_cloaked: bool | None = None
+    added_date_time_utc: datetime | None = None
+    display_name: str | None = None
+    suggestion: Suggestion | None = None
+    recommendation: Recommendation | None = None
+    search: typing.Any | None = None
+    title_history: typing.Any | None = None
+    multiplayer_summary: MultiplayerSummary | None = None
+    recent_player: RecentPlayer | None = None
+    follower: Follower | None = None
+    preferred_color: PreferredColor | None = None
+    presence_details: list[PresenceDetail] | None = None
+    title_presence: TitlePresence | None = None
+    title_summaries: typing.Any | None = None
+    presence_title_ids: list[str] | None = None
+    detail: Detail | None = None
+    community_manager_titles: typing.Any | None = None
+    social_manager: SocialManager | None = None
+    broadcast: list[typing.Any] | None = None
+    tournament_summary: typing.Any | None = None
+    avatar: Avatar | None = None
+    linked_accounts: list[LinkedAccount] | None = None
+    last_seen_date_time_utc: datetime | None = None
 
 
 class RecommendationSummary(CamelBaseModel):
@@ -231,6 +231,6 @@ class FriendFinderState(CamelBaseModel):
 @add_decoder
 class PeopleHubResponse(ParsableCamelModel):
     people: list[Person]
-    recommendation_summary: typing.Optional[RecommendationSummary] = None
-    friend_finder_state: typing.Optional[FriendFinderState] = None
-    account_link_details: typing.Optional[list[LinkedAccount]] = None
+    recommendation_summary: RecommendationSummary | None = None
+    friend_finder_state: FriendFinderState | None = None
+    account_link_details: list[LinkedAccount] | None = None
