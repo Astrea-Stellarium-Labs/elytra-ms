@@ -1,7 +1,7 @@
 """
 MIT License
 
-Copyright (c) 2023-2024 AstreaTSS
+Copyright (c) 2023-2026 AstreaTSS
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -90,7 +90,7 @@ class RealmStorySettings(ParsableCamelModel):
 @add_decoder
 class FullRealm(ParsableCamelModel):
     id: int
-    owner: typing.Optional[str]
+    owner: str | None
     name: str
     default_permission: Permission
     state: State
@@ -107,10 +107,10 @@ class FullRealm(ParsableCamelModel):
     subscription_refresh_status: NoneType
     owner_uuid: str = msgspec.field(name="ownerUUID")
     member: bool = False
-    slots: typing.Optional[typing.Any] = None
-    players: typing.Optional[list[Player]] = None
-    club_id: typing.Optional[int] = None
-    motd: typing.Optional[str] = None
+    slots: typing.Any | None = None
+    players: list[Player] | None = None
+    club_id: int | None = None
+    motd: str | None = None
 
 
 @add_decoder
@@ -123,10 +123,10 @@ class IndividualRealm(ParsableCamelModel):
     owner_uuid: str = msgspec.field(name="ownerUUID")
     member: bool = False
     is_hardcore: bool = False
-    players: typing.Optional[list[Player]] = None
-    club_id: typing.Optional[int] = None
-    motd: typing.Optional[str] = None
-    stories_settings: typing.Optional[RealmStorySettings] = None
+    players: list[Player] | None = None
+    club_id: int | None = None
+    motd: str | None = None
+    stories_settings: RealmStorySettings | None = None
 
 
 @add_decoder
