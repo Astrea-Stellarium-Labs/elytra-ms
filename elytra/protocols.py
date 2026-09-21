@@ -1,7 +1,7 @@
 """
 MIT License
 
-Copyright (c) 2023-2024 AstreaTSS
+Copyright (c) 2023-2026 AstreaTSS
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -33,9 +33,9 @@ class HandlerProtocol(typing.Protocol):
         method: str,
         url: str,
         json: typing.Any = None,
-        data: typing.Optional[dict] = None,
-        params: typing.Optional[dict] = None,
-        headers: typing.Optional[dict] = None,
+        data: dict | None = None,
+        params: dict | None = None,
+        headers: dict | None = None,
         *,
         force_refresh: bool = False,
         **kwargs: typing.Any,
@@ -45,9 +45,9 @@ class HandlerProtocol(typing.Protocol):
         self,
         url: str,
         json: typing.Any = None,
-        data: typing.Optional[dict] = None,
-        params: typing.Optional[dict] = None,
-        headers: typing.Optional[dict] = None,
+        data: dict | None = None,
+        params: dict | None = None,
+        headers: dict | None = None,
         **kwargs: typing.Any,
     ) -> httpx.Response: ...
 
@@ -55,9 +55,9 @@ class HandlerProtocol(typing.Protocol):
         self,
         url: str,
         json: typing.Any = None,
-        data: typing.Optional[dict] = None,
-        params: typing.Optional[dict] = None,
-        headers: typing.Optional[dict] = None,
+        data: dict | None = None,
+        params: dict | None = None,
+        headers: dict | None = None,
         **kwargs: typing.Any,
     ) -> httpx.Response: ...
 
@@ -65,9 +65,9 @@ class HandlerProtocol(typing.Protocol):
         self,
         url: str,
         json: typing.Any = None,
-        data: typing.Optional[dict] = None,
-        params: typing.Optional[dict] = None,
-        headers: typing.Optional[dict] = None,
+        data: dict | None = None,
+        params: dict | None = None,
+        headers: dict | None = None,
         **kwargs: typing.Any,
     ) -> httpx.Response: ...
 
@@ -75,8 +75,8 @@ class HandlerProtocol(typing.Protocol):
         self,
         url: str,
         json: typing.Any = None,
-        data: typing.Optional[dict] = None,
-        params: typing.Optional[dict] = None,
-        headers: typing.Optional[dict] = None,
+        data: dict | None = None,
+        params: dict | None = None,
+        headers: dict | None = None,
         **kwargs: typing.Any,
     ) -> httpx.Response: ...
