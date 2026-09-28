@@ -1,7 +1,7 @@
 """
 MIT License
 
-Copyright (c) 2023-2024 AstreaTSS
+Copyright (c) 2023-2026 AstreaTSS
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -115,8 +115,8 @@ class OAuth2TokenResponse(ParsableModel):
     scope: str
     access_token: str
     issued: datetime.datetime = msgspec.field(default_factory=utc_now)
-    user_id: typing.Optional[str] = None
-    refresh_token: typing.Optional[str] = None
+    user_id: str | None = None
+    refresh_token: str | None = None
 
     def is_valid(self) -> bool:
         return (self.issued + datetime.timedelta(seconds=self.expires_in)) > utc_now()
@@ -475,9 +475,9 @@ class BaseMicrosoftAPI(HandlerProtocol):
         method: str,
         url: str,
         json: typing.Any = None,
-        data: typing.Optional[dict] = None,
-        params: typing.Optional[dict] = None,
-        headers: typing.Optional[dict] = None,
+        data: dict | None = None,
+        params: dict | None = None,
+        headers: dict | None = None,
         *,
         force_refresh: bool = False,
         dont_handle_ratelimit: bool = False,
@@ -525,9 +525,9 @@ class BaseMicrosoftAPI(HandlerProtocol):
         self,
         url: str,
         json: typing.Any = None,
-        data: typing.Optional[dict] = None,
-        params: typing.Optional[dict] = None,
-        headers: typing.Optional[dict] = None,
+        data: dict | None = None,
+        params: dict | None = None,
+        headers: dict | None = None,
         **kwargs: typing.Any,
     ) -> httpx.Response:
         return await self.request(
@@ -544,9 +544,9 @@ class BaseMicrosoftAPI(HandlerProtocol):
         self,
         url: str,
         json: typing.Any = None,
-        data: typing.Optional[dict] = None,
-        params: typing.Optional[dict] = None,
-        headers: typing.Optional[dict] = None,
+        data: dict | None = None,
+        params: dict | None = None,
+        headers: dict | None = None,
         **kwargs: typing.Any,
     ) -> httpx.Response:
         return await self.request(
@@ -563,9 +563,9 @@ class BaseMicrosoftAPI(HandlerProtocol):
         self,
         url: str,
         json: typing.Any = None,
-        data: typing.Optional[dict] = None,
-        params: typing.Optional[dict] = None,
-        headers: typing.Optional[dict] = None,
+        data: dict | None = None,
+        params: dict | None = None,
+        headers: dict | None = None,
         **kwargs: typing.Any,
     ) -> httpx.Response:
         return await self.request(
@@ -582,9 +582,9 @@ class BaseMicrosoftAPI(HandlerProtocol):
         self,
         url: str,
         json: typing.Any = None,
-        data: typing.Optional[dict] = None,
-        params: typing.Optional[dict] = None,
-        headers: typing.Optional[dict] = None,
+        data: dict | None = None,
+        params: dict | None = None,
+        headers: dict | None = None,
         **kwargs: typing.Any,
     ) -> httpx.Response:
         return await self.request(
