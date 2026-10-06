@@ -1,7 +1,7 @@
 """
 MIT License
 
-Copyright (c) 2023-2024 AstreaTSS
+Copyright (c) 2023-2026 AstreaTSS
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -100,8 +100,8 @@ class ClubType(CamelBaseModel):
 
 class ProfileMetadata(CamelBaseModel):
     can_viewer_change_setting: bool
-    value: typing.Optional[typing.Any] = None
-    allowed_values: typing.Optional[typing.Any] = None
+    value: typing.Any | None = None
+    allowed_values: typing.Any | None = None
 
 
 class Profile(CamelBaseModel):
@@ -165,18 +165,18 @@ class Club(CamelBaseModel):
     title_deeplinks: TitleDeeplinks
     profile: Profile
     club_deeplinks: ClubDeeplinks
-    owner_xuid: typing.Optional[str] = None  # ???
-    suspended_until_utc: typing.Optional[typing.Any] = None
-    roster: typing.Optional[typing.Any] = None
-    target_roles: typing.Optional[typing.Any] = None
-    recommendation: typing.Optional[typing.Any] = None
-    settings: typing.Optional[typing.Any] = None
-    short_name: typing.Optional[typing.Any] = None
+    owner_xuid: str | None = None  # ???
+    suspended_until_utc: typing.Any | None = None
+    roster: typing.Any | None = None
+    target_roles: typing.Any | None = None
+    recommendation: typing.Any | None = None
+    settings: typing.Any | None = None
+    short_name: typing.Any | None = None
 
 
 @add_decoder
 class ClubResponse(ParsableCamelModel):
     clubs: list[Club]
-    search_facet_results: typing.Optional[typing.Any] = None
-    recommendation_counts: typing.Optional[typing.Any] = None
-    club_deeplinks: typing.Optional[typing.Any] = None
+    search_facet_results: typing.Any | None = None
+    recommendation_counts: typing.Any | None = None
+    club_deeplinks: typing.Any | None = None
